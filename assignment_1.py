@@ -10,3 +10,12 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+	
+
+def interactive_segmentation(nputImage,segmentedImage,segmaskImage):
+#Input
+#nputImage = '<name of input image file>'   #  use JPG images
+#segmentedImage = <name of output image file – image with transparent segment overlay>
+#segmaskImage = '<name of output image file – image with segmentation mask >
+  print("Hello from a function")
