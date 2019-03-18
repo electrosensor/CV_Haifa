@@ -2,7 +2,7 @@ import numpy
 
 
 def main():
-    return True
+    print("numpy version: " + numpy.__version__)
 
 
 if __name__ == '__main__':
