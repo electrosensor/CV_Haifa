@@ -16,14 +16,12 @@
 #The user will have four lists: seg0, seg1, seg2, seg3. Each is a list with all the points belonging to the segment.
 
 
-
-
 import cv2
 import dlib
 import sys
 import numpy as np
 
-inputImage = 'man.jpg'   #  use JPG images
+inputImage = 'images/man.jpg'   #  use JPG images
 segmentedImage = 'man_seg.jpg'
 segmaskImage = 'man_seg_mask.jpg'
 
