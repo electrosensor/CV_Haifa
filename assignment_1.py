@@ -20,6 +20,7 @@ import cv2
 import dlib
 import sys
 import numpy as np
+from matplotlib import pyplot as plt
 
 inputImage = 'images/man.jpg'   # use JPG images
 segmentedImage = 'man_seg.jpg'
@@ -136,7 +137,10 @@ def main():
 
     orig_img = cv2.imread(inputImage)
     seg_img = cv2.imread(inputImage)
- 
+    mask = np.ones(seg_img.shape[:2], np.uint8)*3
+
+
+
     cv2.namedWindow("Select segments")
 
     # mouse event listener
@@ -162,7 +166,30 @@ def main():
 
     # graph cut implementation for 4 segments
     # add functions and code as you wish
+    bg_model = np.zeros((1, 65), np.float64)
+    fg_model = np.zeros((1, 65), np.float64)
+    for point in seg0:
+        mask[point[1], point[0]] = 1
+    for point in seg1:
+        mask[point[1], point[0]] = 0
+    for point in seg2:
+        mask[point[1], point[0]] = 0
+    for point in seg3:
+        mask[point[1], point[0]] = 0
 
+    mask, bg_model, fg_model = cv2.grabCut(seg_img, mask, None, bg_model, fg_model, 5, cv2.GC_INIT_WITH_MASK)
+    cv2.namedWindow("mask_w")
+
+    mask = np.where((mask == 2) | (mask == 0), 0, 1).astype('uint8')
+
+
+    seg_img = seg_img * mask[:,:,np.newaxis]
+    # plt.imshow(seg_img), plt.colorbar(), plt.show()
+    while True:
+        cv2.imshow("mask_w", seg_img)
+        k = cv2.waitKey(20)
+        if k == 27:  # escape
+            break
     # destroy all windows
     cv2.destroyAllWindows()
 
