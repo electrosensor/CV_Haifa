@@ -137,7 +137,7 @@ def main():
 
     orig_img = cv2.imread(inputImage)
     seg_img = cv2.imread(inputImage)
-    mask = np.ones(seg_img.shape[:2], np.uint8)*3
+    mask = np.ones(seg_img.shape[:2], np.uint8)*2
 
 
 
@@ -168,8 +168,23 @@ def main():
     # add functions and code as you wish
     bg_model = np.zeros((1, 65), np.float64)
     fg_model = np.zeros((1, 65), np.float64)
+
+    min_x = sys.maxsize
+    max_x = 0
+    min_y = sys.maxsize
+    max_y = 0
+
     for point in seg0:
         mask[point[1], point[0]] = 1
+        min_x = min(min_x, point[1])
+        max_x = max(max_x, point[1])
+        min_y = min(min_y, point[0])
+        max_y = max(max_y, point[0])
+
+    for i in range(min_x, max_x):
+        for j in range(min_y, max_y):
+            mask[i, j] = 3
+
     for point in seg1:
         mask[point[1], point[0]] = 0
     for point in seg2:
