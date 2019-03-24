@@ -137,9 +137,6 @@ def main():
 
     orig_img = cv2.imread(inputImage)
     seg_img = cv2.imread(inputImage)
-    mask = np.ones(seg_img.shape[:2], np.uint8)*2
-
-
 
     cv2.namedWindow("Select segments")
 
@@ -166,42 +163,64 @@ def main():
 
     # graph cut implementation for 4 segments
     # add functions and code as you wish
-    bg_model = np.zeros((1, 65), np.float64)
-    fg_model = np.zeros((1, 65), np.float64)
 
-    min_x = sys.maxsize
-    max_x = 0
-    min_y = sys.maxsize
-    max_y = 0
-
+    mask = np.ones(seg_img.shape[:2], np.uint8)*2
     for point in seg0:
         mask[point[1], point[0]] = 1
-        min_x = min(min_x, point[1])
-        max_x = max(max_x, point[1])
-        min_y = min(min_y, point[0])
-        max_y = max(max_y, point[0])
-
-    for i in range(min_x, max_x):
-        for j in range(min_y, max_y):
-            mask[i, j] = 3
-
     for point in seg1:
-        mask[point[1], point[0]] = 0
+        mask[point[1], point[0]] = 1
     for point in seg2:
         mask[point[1], point[0]] = 0
     for point in seg3:
         mask[point[1], point[0]] = 0
 
-    mask, bg_model, fg_model = cv2.grabCut(seg_img, mask, None, bg_model, fg_model, 5, cv2.GC_INIT_WITH_MASK)
-    cv2.namedWindow("mask_w")
+    bg_model1 = np.zeros((1, 65), np.float64)
+    fg_model1 = np.zeros((1, 65), np.float64)
+    mask, bg_model1, fg_model1 = cv2.grabCut(orig_img, mask, None, bg_model1, fg_model1, 5, cv2.GC_INIT_WITH_MASK)
 
     mask = np.where((mask == 2) | (mask == 0), 0, 1).astype('uint8')
+    orig_img1 = orig_img * mask[:, :, np.newaxis]
 
+    mask2 = mask[:, :]
+    for point in seg0:
+        mask2[point[1], point[0]] = 1
+    for point in seg1:
+        mask2[point[1], point[0]] = 0
+    for point in seg2:
+        mask2[point[1], point[0]] = 0
+    for point in seg3:
+        mask2[point[1], point[0]] = 0
 
-    seg_img = seg_img * mask[:,:,np.newaxis]
+    mask3 = mask[:, :]
+    for point in seg0:
+        mask3[point[1], point[0]] = 0
+    for point in seg1:
+        mask3[point[1], point[0]] = 1
+    for point in seg2:
+        mask3[point[1], point[0]] = 0
+    for point in seg3:
+        mask3[point[1], point[0]] = 0
+
+    bg_model1 = np.zeros((1, 65), np.float64)
+    fg_model1 = np.zeros((1, 65), np.float64)
+    mask2, bg_model1, fg_model1 = cv2.grabCut(orig_img1, mask2, None, bg_model1, fg_model1, 5, cv2.GC_INIT_WITH_MASK)
+
+    bg_model2 = np.zeros((1, 65), np.float64)
+    fg_model2 = np.zeros((1, 65), np.float64)
+    mask3, bg_model2, fg_model2 = cv2.grabCut(orig_img1, mask3, None, bg_model2, fg_model2, 5, cv2.GC_INIT_WITH_MASK)
+
+    seg_img2 = orig_img * mask2[:, :, np.newaxis]
+    seg_img3 = orig_img * mask3[:, :, np.newaxis]
+
+    cv2.namedWindow("seg1")
+    cv2.namedWindow("seg1a")
+    cv2.namedWindow("seg1b")
+
     # plt.imshow(seg_img), plt.colorbar(), plt.show()
     while True:
-        cv2.imshow("mask_w", seg_img)
+        cv2.imshow("seg1", orig_img1)
+        cv2.imshow("seg1a", seg_img2)
+        cv2.imshow("seg1b", seg_img3)
         k = cv2.waitKey(20)
         if k == 27:  # escape
             break
