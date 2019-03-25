@@ -20,7 +20,6 @@ import cv2
 import dlib
 import sys
 import numpy as np
-from matplotlib import pyplot as plt
 
 inputImage = 'images/man.jpg'   # use JPG images
 segmentedImage = 'man_seg.jpg'
@@ -164,7 +163,7 @@ def main():
     # graph cut implementation for 4 segments
     # add functions and code as you wish
 
-    mask1 = np.ones(seg_img.shape[:2], np.uint8)*2
+    mask1 = np.ones(seg_img.shape[:2], np.uint8) * 2
     for point in seg0:
         mask1[point[1], point[0]] = 1
     for point in seg1:
@@ -176,7 +175,7 @@ def main():
 
     bg_model1 = np.zeros((1, 65), np.float64)
     fg_model1 = np.zeros((1, 65), np.float64)
-    mask1, bg_model1, fg_model1 = cv2.grabCut(orig_img, mask1, None, bg_model1, fg_model1, 10, cv2.GC_INIT_WITH_MASK)
+    mask1, bg_model1, fg_model1 = cv2.grabCut(orig_img, mask1, None, bg_model1, fg_model1, 5, cv2.GC_INIT_WITH_MASK)
 
     mask1 = np.where((mask1 == 2) | (mask1 == 0), 0, 1).astype('uint8')
     orig_img1 = orig_img * mask1[:, :, np.newaxis]
@@ -200,12 +199,12 @@ def main():
 
 ##########
 
-
-    mask1b = np.where(mask1 == 1, 2, 0).astype('uint8')
-    for point in seg0:
-        mask1b[point[1], point[0]] = 0
-    for point in seg1:
-        mask1b[point[1], point[0]] = 1
+    mask1b = mask1 - mask1a
+    # mask1b = np.where(mask1 == 1, 2, 0).astype('uint8')
+    # for point in seg0:
+    #     mask1b[point[1], point[0]] = 0
+    # for point in seg1:
+    #     mask1b[point[1], point[0]] = 1
 
     bg_model1b = np.zeros((1, 65), np.float64)
     fg_model1b = np.zeros((1, 65), np.float64)
@@ -216,19 +215,20 @@ def main():
 
 ###########
 
-    mask2 = np.ones(seg_img.shape[:2], np.uint8) * 2
-    for point in seg0:
-        mask2[point[1], point[0]] = 0
-    for point in seg1:
-        mask2[point[1], point[0]] = 0
-    for point in seg2:
-        mask2[point[1], point[0]] = 1
-    for point in seg3:
-        mask2[point[1], point[0]] = 1
+    mask2 = np.where(mask1 == 0, 1, 0).astype('uint8')
+    # mask2 = np.ones(seg_img.shape[:2], np.uint8) * 3
+    # for point in seg0:
+    #     mask2[point[1], point[0]] = 0
+    # for point in seg1:
+    #     mask2[point[1], point[0]] = 0
+    # for point in seg2:
+    #     mask2[point[1], point[0]] = 1
+    # for point in seg3:
+    #     mask2[point[1], point[0]] = 1
 
     bg_model2 = np.zeros((1, 65), np.float64)
     fg_model2 = np.zeros((1, 65), np.float64)
-    mask2, bg_model2, fg_model2 = cv2.grabCut(orig_img, mask2, None, bg_model2, fg_model2, 10, cv2.GC_INIT_WITH_MASK)
+    mask2, bg_model2, fg_model2 = cv2.grabCut(orig_img, mask2, None, bg_model2, fg_model2, 5, cv2.GC_INIT_WITH_MASK)
 
     mask2 = np.where((mask2 == 2) | (mask2 == 0), 0, 1).astype('uint8')
     orig_img2 = orig_img * mask2[:, :, np.newaxis]
@@ -250,11 +250,12 @@ def main():
 
 ##########
 
-    mask2b = np.where(mask2 == 1, 2, 0).astype('uint8')
-    for point in seg2:
-        mask2b[point[1], point[0]] = 0
-    for point in seg3:
-        mask2b[point[1], point[0]] = 1
+    mask2b = mask2 - mask2a
+    # mask2b = np.where(mask2 == 1, 2, 0).astype('uint8')
+    # for point in seg2:
+    #     mask2b[point[1], point[0]] = 0
+    # for point in seg3:
+    #     mask2b[point[1], point[0]] = 1
 
     bg_model2b = np.zeros((1, 65), np.float64)
     fg_model2b = np.zeros((1, 65), np.float64)
@@ -265,12 +266,42 @@ def main():
 
 ###########
 
+    mask_tmpR = mask1a[:, :, np.newaxis] * 0
+    mask_tmpG = mask1a[:, :, np.newaxis] * 0
+    mask_tmpB = mask1a[:, :, np.newaxis] * 255
+    out_mask1a = np.concatenate([mask_tmpR, mask_tmpG, mask_tmpB], axis=2)
+
+    mask_tmpR = mask1b[:, :, np.newaxis] * 0
+    mask_tmpG = mask1b[:, :, np.newaxis] * 255
+    mask_tmpB = mask1b[:, :, np.newaxis] * 0
+    out_mask1b = np.concatenate([mask_tmpR, mask_tmpG, mask_tmpB], axis=2)
+
+    mask_tmpR = mask2a[:, :, np.newaxis] * 255
+    mask_tmpG = mask2a[:, :, np.newaxis] * 0
+    mask_tmpB = mask2a[:, :, np.newaxis] * 0
+    out_mask2a = np.concatenate([mask_tmpR, mask_tmpG, mask_tmpB], axis=2)
+
+    mask_tmpR = mask2b[:, :, np.newaxis] * 0
+    mask_tmpG = mask2b[:, :, np.newaxis] * 255
+    mask_tmpB = mask2b[:, :, np.newaxis] * 255
+    out_mask2b = np.concatenate([mask_tmpR, mask_tmpG, mask_tmpB], axis=2)
+
+    output_mask = out_mask1a + out_mask1b + out_mask2a + out_mask2b
+
+    alpha = 1
+    beta = 0.5
+    output_im = cv2.addWeighted(src1=orig_img, alpha=alpha, src2=output_mask, beta=beta, gamma=0)
+
     cv2.namedWindow("seg1")
     cv2.namedWindow("seg1a")
     cv2.namedWindow("seg1b")
     cv2.namedWindow("seg2")
     cv2.namedWindow("seg2a")
     cv2.namedWindow("seg2b")
+
+    cv2.namedWindow("mask")
+    cv2.namedWindow("mask & image")
+
     while True:
         cv2.imshow("seg1", orig_img1)
         cv2.imshow("seg1a", orig_img1a)
@@ -278,6 +309,8 @@ def main():
         cv2.imshow("seg2", orig_img2)
         cv2.imshow("seg2a", orig_img2a)
         cv2.imshow("seg2b", orig_img2b)
+        cv2.imshow("mask", output_mask)
+        cv2.imshow("mask & image", output_im)
         k = cv2.waitKey(20)
         if k == 27:  # escape
             break
