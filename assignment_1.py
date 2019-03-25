@@ -164,69 +164,128 @@ def main():
     # graph cut implementation for 4 segments
     # add functions and code as you wish
 
-    mask = np.ones(seg_img.shape[:2], np.uint8)*2
+    mask1 = np.ones(seg_img.shape[:2], np.uint8)*2
     for point in seg0:
-        mask[point[1], point[0]] = 1
+        mask1[point[1], point[0]] = 1
     for point in seg1:
-        mask[point[1], point[0]] = 1
+        mask1[point[1], point[0]] = 1
     for point in seg2:
-        mask[point[1], point[0]] = 0
+        mask1[point[1], point[0]] = 0
     for point in seg3:
-        mask[point[1], point[0]] = 0
+        mask1[point[1], point[0]] = 0
 
     bg_model1 = np.zeros((1, 65), np.float64)
     fg_model1 = np.zeros((1, 65), np.float64)
-    mask, bg_model1, fg_model1 = cv2.grabCut(orig_img, mask, None, bg_model1, fg_model1, 5, cv2.GC_INIT_WITH_MASK)
+    mask1, bg_model1, fg_model1 = cv2.grabCut(orig_img, mask1, None, bg_model1, fg_model1, 10, cv2.GC_INIT_WITH_MASK)
 
-    mask = np.where((mask == 2) | (mask == 0), 0, 1).astype('uint8')
-    orig_img1 = orig_img * mask[:, :, np.newaxis]
+    mask1 = np.where((mask1 == 2) | (mask1 == 0), 0, 1).astype('uint8')
+    orig_img1 = orig_img * mask1[:, :, np.newaxis]
 
-    mask2 = mask[:, :]
+
+##########
+
+
+    mask1a = np.where(mask1 == 1, 2, 0).astype('uint8')
     for point in seg0:
+        mask1a[point[1], point[0]] = 1
+    for point in seg1:
+        mask1a[point[1], point[0]] = 0
+
+    bg_model1a = np.zeros((1, 65), np.float64)
+    fg_model1a = np.zeros((1, 65), np.float64)
+    mask1a, bg_model1a, fg_model1a = cv2.grabCut(orig_img1, mask1a, None, bg_model1a, fg_model1a, 5, cv2.GC_INIT_WITH_MASK)
+
+    mask1a = np.where((mask1a == 2) | (mask1a == 0), 0, 1).astype('uint8')
+    orig_img1a = orig_img1 * mask1a[:, :, np.newaxis]
+
+##########
+
+
+    mask1b = np.where(mask1 == 1, 2, 0).astype('uint8')
+    for point in seg0:
+        mask1b[point[1], point[0]] = 0
+    for point in seg1:
+        mask1b[point[1], point[0]] = 1
+
+    bg_model1b = np.zeros((1, 65), np.float64)
+    fg_model1b = np.zeros((1, 65), np.float64)
+    mask1b, bg_model1b, fg_model1b = cv2.grabCut(orig_img1, mask1b, None, bg_model1b, fg_model1b, 5, cv2.GC_INIT_WITH_MASK)
+
+    mask1b = np.where((mask1b == 2) | (mask1b == 0), 0, 1).astype('uint8')
+    orig_img1b = orig_img1 * mask1b[:, :, np.newaxis]
+
+###########
+
+    mask2 = np.ones(seg_img.shape[:2], np.uint8) * 2
+    for point in seg0:
+        mask2[point[1], point[0]] = 0
+    for point in seg1:
+        mask2[point[1], point[0]] = 0
+    for point in seg2:
         mask2[point[1], point[0]] = 1
-    for point in seg1:
-        mask2[point[1], point[0]] = 0
-    for point in seg2:
-        mask2[point[1], point[0]] = 0
     for point in seg3:
-        mask2[point[1], point[0]] = 0
-
-    mask3 = mask[:, :]
-    for point in seg0:
-        mask3[point[1], point[0]] = 0
-    for point in seg1:
-        mask3[point[1], point[0]] = 1
-    for point in seg2:
-        mask3[point[1], point[0]] = 0
-    for point in seg3:
-        mask3[point[1], point[0]] = 0
-
-    bg_model1 = np.zeros((1, 65), np.float64)
-    fg_model1 = np.zeros((1, 65), np.float64)
-    mask2, bg_model1, fg_model1 = cv2.grabCut(orig_img1, mask2, None, bg_model1, fg_model1, 5, cv2.GC_INIT_WITH_MASK)
+        mask2[point[1], point[0]] = 1
 
     bg_model2 = np.zeros((1, 65), np.float64)
     fg_model2 = np.zeros((1, 65), np.float64)
-    mask3, bg_model2, fg_model2 = cv2.grabCut(orig_img1, mask3, None, bg_model2, fg_model2, 5, cv2.GC_INIT_WITH_MASK)
+    mask2, bg_model2, fg_model2 = cv2.grabCut(orig_img, mask2, None, bg_model2, fg_model2, 10, cv2.GC_INIT_WITH_MASK)
 
-    seg_img2 = orig_img * mask2[:, :, np.newaxis]
-    seg_img3 = orig_img * mask3[:, :, np.newaxis]
+    mask2 = np.where((mask2 == 2) | (mask2 == 0), 0, 1).astype('uint8')
+    orig_img2 = orig_img * mask2[:, :, np.newaxis]
+
+##########
+
+    mask2a = np.where(mask2 == 1, 2, 0).astype('uint8')
+    for point in seg2:
+        mask2a[point[1], point[0]] = 1
+    for point in seg3:
+        mask2a[point[1], point[0]] = 0
+
+    bg_model2a = np.zeros((1, 65), np.float64)
+    fg_model2a = np.zeros((1, 65), np.float64)
+    mask2a, bg_model2a, fg_model2a = cv2.grabCut(orig_img2, mask2a, None, bg_model2a, fg_model2a, 5, cv2.GC_INIT_WITH_MASK)
+
+    mask2a = np.where((mask2a == 2) | (mask2a == 0), 0, 1).astype('uint8')
+    orig_img2a = orig_img2 * mask2a[:, :, np.newaxis]
+
+##########
+
+    mask2b = np.where(mask2 == 1, 2, 0).astype('uint8')
+    for point in seg2:
+        mask2b[point[1], point[0]] = 0
+    for point in seg3:
+        mask2b[point[1], point[0]] = 1
+
+    bg_model2b = np.zeros((1, 65), np.float64)
+    fg_model2b = np.zeros((1, 65), np.float64)
+    mask2b, bg_model2b, fg_model2b = cv2.grabCut(orig_img2, mask2b, None, bg_model2b, fg_model2b, 5, cv2.GC_INIT_WITH_MASK)
+
+    mask2b = np.where((mask2b == 2) | (mask2b == 0), 0, 1).astype('uint8')
+    orig_img2b = orig_img2 * mask2b[:, :, np.newaxis]
+
+###########
 
     cv2.namedWindow("seg1")
     cv2.namedWindow("seg1a")
     cv2.namedWindow("seg1b")
-
-    # plt.imshow(seg_img), plt.colorbar(), plt.show()
+    cv2.namedWindow("seg2")
+    cv2.namedWindow("seg2a")
+    cv2.namedWindow("seg2b")
     while True:
         cv2.imshow("seg1", orig_img1)
-        cv2.imshow("seg1a", seg_img2)
-        cv2.imshow("seg1b", seg_img3)
+        cv2.imshow("seg1a", orig_img1a)
+        cv2.imshow("seg1b", orig_img1b)
+        cv2.imshow("seg2", orig_img2)
+        cv2.imshow("seg2a", orig_img2a)
+        cv2.imshow("seg2b", orig_img2b)
         k = cv2.waitKey(20)
         if k == 27:  # escape
             break
     # destroy all windows
     cv2.destroyAllWindows()
 
+
+# def two_class_segmentation()
 
 if __name__ == "__main__":
     main()
