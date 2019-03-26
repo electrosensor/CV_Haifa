@@ -21,7 +21,7 @@ import dlib
 import sys
 import numpy as np
 
-inputImage = 'images/man.jpg'   # use JPG images
+inputImage = 'man.jpg'   # use JPG images
 segmentedImage = 'man_seg.jpg'
 segmaskImage = 'man_seg_mask.jpg'
 
@@ -163,6 +163,8 @@ def main():
     # graph cut implementation for 4 segments
     # add functions and code as you wish
 
+# Stage 1: Extraction of first segments pair
+
     mask1 = np.ones(seg_img.shape[:2], np.uint8) * 2
     for point in seg0:
         mask1[point[1], point[0]] = 1
@@ -181,8 +183,7 @@ def main():
     orig_img1 = orig_img * mask1[:, :, np.newaxis]
 
 
-##########
-
+# Stage 1a: Extraction of first segment from first segments pair
 
     mask1a = np.where(mask1 == 1, 2, 0).astype('uint8')
     for point in seg0:
@@ -195,36 +196,20 @@ def main():
     mask1a, bg_model1a, fg_model1a = cv2.grabCut(orig_img1, mask1a, None, bg_model1a, fg_model1a, 5, cv2.GC_INIT_WITH_MASK)
 
     mask1a = np.where((mask1a == 2) | (mask1a == 0), 0, 1).astype('uint8')
-    orig_img1a = orig_img1 * mask1a[:, :, np.newaxis]
 
-##########
+# Stage 1b: Extraction of second segment from first segments pair
 
     mask1b = mask1 - mask1a
-    # mask1b = np.where(mask1 == 1, 2, 0).astype('uint8')
-    # for point in seg0:
-    #     mask1b[point[1], point[0]] = 0
-    # for point in seg1:
-    #     mask1b[point[1], point[0]] = 1
 
     bg_model1b = np.zeros((1, 65), np.float64)
     fg_model1b = np.zeros((1, 65), np.float64)
     mask1b, bg_model1b, fg_model1b = cv2.grabCut(orig_img1, mask1b, None, bg_model1b, fg_model1b, 5, cv2.GC_INIT_WITH_MASK)
 
     mask1b = np.where((mask1b == 2) | (mask1b == 0), 0, 1).astype('uint8')
-    orig_img1b = orig_img1 * mask1b[:, :, np.newaxis]
 
-###########
+# Stage 2: Extraction of second segments
 
     mask2 = np.where(mask1 == 0, 1, 0).astype('uint8')
-    # mask2 = np.ones(seg_img.shape[:2], np.uint8) * 3
-    # for point in seg0:
-    #     mask2[point[1], point[0]] = 0
-    # for point in seg1:
-    #     mask2[point[1], point[0]] = 0
-    # for point in seg2:
-    #     mask2[point[1], point[0]] = 1
-    # for point in seg3:
-    #     mask2[point[1], point[0]] = 1
 
     bg_model2 = np.zeros((1, 65), np.float64)
     fg_model2 = np.zeros((1, 65), np.float64)
@@ -233,7 +218,7 @@ def main():
     mask2 = np.where((mask2 == 2) | (mask2 == 0), 0, 1).astype('uint8')
     orig_img2 = orig_img * mask2[:, :, np.newaxis]
 
-##########
+# Stage 2a: Extraction of first segment from second segments pair
 
     mask2a = np.where(mask2 == 1, 2, 0).astype('uint8')
     for point in seg2:
@@ -246,25 +231,18 @@ def main():
     mask2a, bg_model2a, fg_model2a = cv2.grabCut(orig_img2, mask2a, None, bg_model2a, fg_model2a, 5, cv2.GC_INIT_WITH_MASK)
 
     mask2a = np.where((mask2a == 2) | (mask2a == 0), 0, 1).astype('uint8')
-    orig_img2a = orig_img2 * mask2a[:, :, np.newaxis]
 
-##########
+# Stage 2b: Extraction of second segment from second segments pair
 
     mask2b = mask2 - mask2a
-    # mask2b = np.where(mask2 == 1, 2, 0).astype('uint8')
-    # for point in seg2:
-    #     mask2b[point[1], point[0]] = 0
-    # for point in seg3:
-    #     mask2b[point[1], point[0]] = 1
 
     bg_model2b = np.zeros((1, 65), np.float64)
     fg_model2b = np.zeros((1, 65), np.float64)
     mask2b, bg_model2b, fg_model2b = cv2.grabCut(orig_img2, mask2b, None, bg_model2b, fg_model2b, 5, cv2.GC_INIT_WITH_MASK)
 
     mask2b = np.where((mask2b == 2) | (mask2b == 0), 0, 1).astype('uint8')
-    orig_img2b = orig_img2 * mask2b[:, :, np.newaxis]
 
-###########
+# Stage 3: Coloring and composition of four binary masks (1a, 1b, 2a, 2b)
 
     mask_tmpR = mask1a[:, :, np.newaxis] * 0
     mask_tmpG = mask1a[:, :, np.newaxis] * 0
@@ -288,37 +266,27 @@ def main():
 
     output_mask = out_mask1a + out_mask1b + out_mask2a + out_mask2b
 
+# Stage 4: Blending of original image and gotten mask, while the mask is transparent
+
     alpha = 1
-    beta = 0.5
+    beta = 0.7
     output_im = cv2.addWeighted(src1=orig_img, alpha=alpha, src2=output_mask, beta=beta, gamma=0)
 
-    cv2.namedWindow("seg1")
-    cv2.namedWindow("seg1a")
-    cv2.namedWindow("seg1b")
-    cv2.namedWindow("seg2")
-    cv2.namedWindow("seg2a")
-    cv2.namedWindow("seg2b")
-
-    cv2.namedWindow("mask")
     cv2.namedWindow("mask & image")
+    cv2.namedWindow("mask")
 
     while True:
-        cv2.imshow("seg1", orig_img1)
-        cv2.imshow("seg1a", orig_img1a)
-        cv2.imshow("seg1b", orig_img1b)
-        cv2.imshow("seg2", orig_img2)
-        cv2.imshow("seg2a", orig_img2a)
-        cv2.imshow("seg2b", orig_img2b)
-        cv2.imshow("mask", output_mask)
         cv2.imshow("mask & image", output_im)
+        cv2.imshow("mask", output_mask)
+
+        cv2.imwrite(segmentedImage, output_im)
+        cv2.imwrite(segmaskImage, output_mask)
         k = cv2.waitKey(20)
         if k == 27:  # escape
             break
     # destroy all windows
     cv2.destroyAllWindows()
 
-
-# def two_class_segmentation()
 
 if __name__ == "__main__":
     main()
