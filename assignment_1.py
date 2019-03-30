@@ -60,6 +60,9 @@ def mouse_click(event, x, y, flags,params):
                 points = add_line_point(seg3[-1], (x, y))
                 append_to_seg(seg3, points)
 
+
+
+
     # right mouse click adds single point
     if event == cv2.EVENT_RBUTTONDOWN:
         if current_segment == SEGMENT_ZERO:
@@ -141,7 +144,6 @@ def main():
 
     # mouse event listener
     cv2.setMouseCallback("Select segments", mouse_click)
-
     # lists to hold pixels in each segment
     seg0 = []
     seg1 = []
@@ -184,27 +186,24 @@ def main():
 
 
 # Stage 1a: Extraction of first segment from first segments pair
+    mask1a = np.zeros(seg_img.shape[:2], np.uint8)
+    if seg0 and seg1:
+        mask1a = np.where(mask1 == 1, 2, 0).astype('uint8')
 
-    mask1a = np.where(mask1 == 1, 2, 0).astype('uint8')
-    for point in seg0:
-        mask1a[point[1], point[0]] = 1
-    for point in seg1:
-        mask1a[point[1], point[0]] = 0
+        for point in seg0:
+            mask1a[point[1], point[0]] = 1
+        for point in seg1:
+            mask1a[point[1], point[0]] = 0
 
-    bg_model1a = np.zeros((1, 65), np.float64)
-    fg_model1a = np.zeros((1, 65), np.float64)
-    mask1a, bg_model1a, fg_model1a = cv2.grabCut(orig_img1, mask1a, None, bg_model1a, fg_model1a, 5, cv2.GC_INIT_WITH_MASK)
+        bg_model1a = np.zeros((1, 65), np.float64)
+        fg_model1a = np.zeros((1, 65), np.float64)
+        mask1a, bg_model1a, fg_model1a = cv2.grabCut(orig_img1, mask1a, None, bg_model1a, fg_model1a, 5, cv2.GC_INIT_WITH_MASK)
 
-    mask1a = np.where((mask1a == 2) | (mask1a == 0), 0, 1).astype('uint8')
+        mask1a = np.where((mask1a == 2) | (mask1a == 0), 0, 1).astype('uint8')
 
 # Stage 1b: Extraction of second segment from first segments pair
 
     mask1b = mask1 - mask1a
-
-    bg_model1b = np.zeros((1, 65), np.float64)
-    fg_model1b = np.zeros((1, 65), np.float64)
-    mask1b, bg_model1b, fg_model1b = cv2.grabCut(orig_img1, mask1b, None, bg_model1b, fg_model1b, 5, cv2.GC_INIT_WITH_MASK)
-
     mask1b = np.where((mask1b == 2) | (mask1b == 0), 0, 1).astype('uint8')
 
 # Stage 2: Extraction of second segments
@@ -220,26 +219,23 @@ def main():
 
 # Stage 2a: Extraction of first segment from second segments pair
 
-    mask2a = np.where(mask2 == 1, 2, 0).astype('uint8')
-    for point in seg2:
-        mask2a[point[1], point[0]] = 1
-    for point in seg3:
-        mask2a[point[1], point[0]] = 0
+    mask2a = np.zeros(seg_img.shape[:2], np.uint8)
+    if seg2 and seg3:
+        mask2a = np.where(mask2 == 1, 2, 0).astype('uint8')
+        for point in seg2:
+            mask2a[point[1], point[0]] = 1
+        for point in seg3:
+            mask2a[point[1], point[0]] = 0
 
-    bg_model2a = np.zeros((1, 65), np.float64)
-    fg_model2a = np.zeros((1, 65), np.float64)
-    mask2a, bg_model2a, fg_model2a = cv2.grabCut(orig_img2, mask2a, None, bg_model2a, fg_model2a, 5, cv2.GC_INIT_WITH_MASK)
+        bg_model2a = np.zeros((1, 65), np.float64)
+        fg_model2a = np.zeros((1, 65), np.float64)
+        mask2a, bg_model2a, fg_model2a = cv2.grabCut(orig_img2, mask2a, None, bg_model2a, fg_model2a, 5, cv2.GC_INIT_WITH_MASK)
 
-    mask2a = np.where((mask2a == 2) | (mask2a == 0), 0, 1).astype('uint8')
+        mask2a = np.where((mask2a == 2) | (mask2a == 0), 0, 1).astype('uint8')
 
 # Stage 2b: Extraction of second segment from second segments pair
 
     mask2b = mask2 - mask2a
-
-    bg_model2b = np.zeros((1, 65), np.float64)
-    fg_model2b = np.zeros((1, 65), np.float64)
-    mask2b, bg_model2b, fg_model2b = cv2.grabCut(orig_img2, mask2b, None, bg_model2b, fg_model2b, 5, cv2.GC_INIT_WITH_MASK)
-
     mask2b = np.where((mask2b == 2) | (mask2b == 0), 0, 1).astype('uint8')
 
 # Stage 3: Coloring and composition of four binary masks (1a, 1b, 2a, 2b)
@@ -265,11 +261,10 @@ def main():
     out_mask2b = np.concatenate([mask_tmpR, mask_tmpG, mask_tmpB], axis=2)
 
     output_mask = out_mask1a + out_mask1b + out_mask2a + out_mask2b
-
 # Stage 4: Blending of original image and gotten mask, while the mask is transparent
 
     alpha = 1
-    beta = 0.7
+    beta = 0.5
     output_im = cv2.addWeighted(src1=orig_img, alpha=alpha, src2=output_mask, beta=beta, gamma=0)
 
     cv2.namedWindow("mask & image")
