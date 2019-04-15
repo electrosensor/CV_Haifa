@@ -86,7 +86,7 @@ class DataBase:
     #     return samples_hist
 
     @staticmethod
-    def get_frequency_hist(ftr_vectors, n_bin, treshold=0):
+    def get_frequency_hist(ftr_vectors, ranges, n_bin, treshold=0):
         clasters_means, labels = DataBase.get_clasters(ftr_vectors, n_bin, treshold)
         samples_hist = np.zeros([len(ranges), n_bin], dtype=np.int32)
         i = 0
@@ -131,7 +131,9 @@ print("Train set len of MotorbikeDB is " + str(len(moto_db.get_train_set())))
 # new features found in image will be tested against the visual words.
 # Another possible system parameter will be the complexity (dimension) of the feature descriptor.
 
-air_train_ftr_vectors, ranges = air_db.get_train_ftr_vecs()
+air_train_ftr_vectors, air_train_ranges = air_db.get_train_ftr_vecs()
+moto_train_ftr_vectors, moto_train_ranges = moto_db.get_train_ftr_vecs()
+elef_train_ftr_vectors, elef_train_ranges = elef_db.get_train_ftr_vecs()
 
 
 # The routine created here might be run several times –
@@ -150,10 +152,9 @@ air_train_ftr_vectors, ranges = air_db.get_train_ftr_vecs()
 # Make sure the routine can read a dictionary that was saved to a file ( in step 2).
 
 n_bins = 64
-air_histograms = AirplaneDB.get_frequency_hist(air_train_ftr_vectors, n_bins)
-
-for i in range(90):
-    print(str(air_histograms[i]))
+air_train_histograms = AirplaneDB.get_frequency_hist(air_train_ftr_vectors, air_train_ranges, n_bins)
+moto_train_histograms = MotorbikeDB.get_frequency_hist(moto_train_ftr_vectors, moto_train_ranges, n_bins)
+elef_train_histograms = ElephantDB.get_frequency_hist(elef_train_ftr_vectors, elef_train_ranges, n_bins)
 
 # 4)   Given the histograms (BOWs) of the DB image –
 #      build a classifier to distinguish between object and non-object.
@@ -162,12 +163,27 @@ for i in range(90):
 # Make sure to save the classifier and / or its parameters to external file to be used later.
 
 # # in SVM::train @param trainData - training data that can be loaded from file using TrainData::loadFromCSV or .created with TrainData::create.
-# air_histograms
-svm = cv2.ml_SVM()
-trainData = np.float32(air_histograms).reshape(-1, 64)
-# responses = np.float32(np.repeat(np.arange(10), 250)[:, np.newaxis])
-# svm.trainAuto(samples=air_histograms, layout=cv2.ml.ROW_SAMPLE, responses=responses)
-# svm.save('svm_data.dat')
+# air_train_histogramssvm = cv2.ml_SVM()
+air_train_data = np.float32(air_train_histograms).reshape(-1, n_bins)
+moto_train_data = np.float32(moto_train_histograms).reshape(-1, n_bins)
+elef_train_data = np.float32(elef_train_histograms).reshape(-1, n_bins)
+
+train_set = np.concatenate((air_train_data, moto_train_data), axis=0)
+train_set = np.concatenate((train_set, elef_train_data), axis=0)
+
+
+air_responses = np.ones([air_train_histograms.shape[0], 1], dtype=np.int32)
+moto_responses = 2*np.ones([moto_train_histograms.shape[0], 1], dtype=np.int32)
+elef_responses = 3*np.ones([elef_train_histograms.shape[0], 1], dtype=np.int32)
+
+responses = np.concatenate((air_responses, moto_responses), axis=0)
+responses = np.concatenate((responses, elef_responses), axis=0)
+
+svm = cv2.ml.SVM_create()
+svm.setKernel(cv2.ml.SVM_LINEAR)
+svm.setType(cv2.ml.SVM_C_SVC)
+svm.train(samples=train_set, layout=cv2.ml.ROW_SAMPLE, responses=responses)
+svm.save('svm_data.dat')
 
 # 5)   Build recognizer – given an image determine if it contains the object or not.
 # This routine will extract features from the image, determine the visual words these
@@ -176,6 +192,26 @@ trainData = np.float32(air_histograms).reshape(-1, 64)
 # Name the Func / file name:   recognizer
 #
 
+
+air_test_ftr_vectors, air_test_ranges = air_db.get_test_ftr_vecs()
+moto_test_ftr_vectors, moto_test_ranges = moto_db.get_test_ftr_vecs()
+elef_test_ftr_vectors, elef_test_ranges = elef_db.get_test_ftr_vecs()
+
+air_test_histograms = AirplaneDB.get_frequency_hist(air_test_ftr_vectors, air_test_ranges, n_bins)
+moto_test_histograms = MotorbikeDB.get_frequency_hist(moto_test_ftr_vectors, moto_test_ranges, n_bins)
+elef_test_histograms = ElephantDB.get_frequency_hist(elef_test_ftr_vectors, elef_test_ranges, n_bins)
+
+air_test_data = np.float32(air_test_histograms).reshape(-1, n_bins)
+moto_test_data = np.float32(moto_test_histograms).reshape(-1, n_bins)
+elef_test_data = np.float32(elef_test_histograms).reshape(-1, n_bins)
+
+test_set = np.concatenate((air_test_data, moto_test_data), axis=0)
+test_set = np.concatenate((test_set, elef_test_data), axis=0)
+
+svm.load('svm_data.dat')
+result = svm.predict(test_set)[1]
+
+print(result)
 
 # within file at top have variable testImageDirName which has the name of the directory
 # which holds a test image or many test images.
