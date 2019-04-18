@@ -19,6 +19,7 @@ class BowDB:
     def __init__(self, dir_path):
         self.__images = []
         for img_path in os.listdir(dir_path):
+            # print(str(img_path))
             img = cv2.imread(dir_path + img_path)
             self.__images.append(img)
         print(str(len(self.__images)) + " images were loaded from " + dir_path)
@@ -30,6 +31,9 @@ class BowDB:
     def get_test_set(self):
         length = round(len(self.__images)*0.85)
         return self.__images[length:]
+
+    def get_all_data(self):
+        return self.__images[:]
 
     @staticmethod
     def __make_ftr_vector(image, n_feature):
@@ -217,14 +221,9 @@ def train(treshold = 340):
     #
     # Make sure the routine can read a dictionary that was saved to a file ( in step 2).
 
-    air_train_histograms, air_train_dists, air_train_max_dist = AirplaneDB.get_frequency_hist(air_train_ftr_vectors,
-                                                                                              air_train_ranges,
-                                                                                              treshold)
-    moto_train_histograms, moto_train_dists, moto_train_max_dist = MotorbikeDB.get_frequency_hist(
-        moto_train_ftr_vectors, moto_train_ranges, treshold)
-    elef_train_histograms, elef_train_dists, elef_train_max_dist = ElephantDB.get_frequency_hist(elef_train_ftr_vectors,
-                                                                                                 elef_train_ranges,
-                                                                                                 treshold)
+    air_train_histograms, air_train_dists, air_train_max_dist = AirplaneDB.get_frequency_hist(air_train_ftr_vectors, air_train_ranges,treshold)
+    moto_train_histograms, moto_train_dists, moto_train_max_dist = MotorbikeDB.get_frequency_hist( moto_train_ftr_vectors, moto_train_ranges, treshold)
+    elef_train_histograms, elef_train_dists, elef_train_max_dist = ElephantDB.get_frequency_hist(elef_train_ftr_vectors,elef_train_ranges,treshold)
 
     air_train_X = 0.1 * air_db.label * np.ones((len(air_train_dists)))
     moto_train_X = 0.1 * moto_db.label * np.ones((len(moto_train_dists)))
@@ -272,6 +271,9 @@ def train(treshold = 340):
 
 def test(testImageDirName='', treshold = 340):
 
+    test_svm = cv2.ml_SVM.create()
+    test_svm = test_svm.load('svm_data.dat')
+
     if(testImageDirName is ''):
         air_db = AirplaneDB()
         moto_db = MotorbikeDB()
@@ -284,15 +286,11 @@ def test(testImageDirName='', treshold = 340):
         air_test_ftr_vectors, air_test_ranges = air_db.get_test_ftr_vecs()
         moto_test_ftr_vectors, moto_test_ranges = moto_db.get_test_ftr_vecs()
         elef_test_ftr_vectors, elef_test_ranges = elef_db.get_test_ftr_vecs()
+        print(str(air_test_ftr_vectors))
 
-        air_test_histograms, air_test_dists, air_test_max_dist = AirplaneDB.get_frequency_hist(air_test_ftr_vectors,
-                                                                                               air_test_ranges, treshold)
-        moto_test_histograms, moto_test_dists, moto_test_max_dist = MotorbikeDB.get_frequency_hist(moto_test_ftr_vectors,
-                                                                                                   moto_test_ranges,
-                                                                                                   treshold)
-        elef_test_histograms, elef_test_dists, elef_test_max_dist = ElephantDB.get_frequency_hist(elef_test_ftr_vectors,
-                                                                                                  elef_test_ranges,
-                                                                                                  treshold)
+        air_test_histograms, air_test_dists, air_test_max_dist = AirplaneDB.get_frequency_hist(air_test_ftr_vectors,air_test_ranges, treshold)
+        moto_test_histograms, moto_test_dists, moto_test_max_dist = MotorbikeDB.get_frequency_hist(moto_test_ftr_vectors,moto_test_ranges, treshold)
+        elef_test_histograms, elef_test_dists, elef_test_max_dist = ElephantDB.get_frequency_hist(elef_test_ftr_vectors,elef_test_ranges,treshold)
 
         air_test_X = 0.1 * air_db.label * np.ones((len(air_test_dists)))
         moto_test_X = 0.1 * moto_db.label * np.ones((len(moto_test_dists)))
@@ -318,31 +316,32 @@ def test(testImageDirName='', treshold = 340):
         exp_labels = np.concatenate((air_exp_labels, moto_exp_labels), axis=0)
         exp_labels = np.concatenate((exp_labels, elef_exp_labels), axis=0)
 
-        svm = cv2.ml_SVM.create()
-        svm = svm.load('svm_data.dat')
-        result = svm.predict(test_set)[1]
+        result = test_svm.predict(test_set)[1]
         plt.imshow(result)
         plt.show()
+        print(str(sum(result)))
 
         conf_matrix = BowDB.confusion_matrix(3, result, exp_labels)
         plt.imshow(conf_matrix)
         plt.colorbar()
         plt.show()
+
+        return [result, exp_labels]
     else:
         db = BowDB(testImageDirName)
-        print("Test set len of BowDB is " + str(len(db.get_test_set()) + len(db.get_train_set())))
+        print("Test set len of BowDB is " + str(len(db.get_all_data())))
 
         test_ftr_vectors, test_ranges = db.get_all_ftr_vecs()
+        print(str(test_ftr_vectors))
 
-        test_histograms, test_dists, test_max_dist = BowDB.get_frequency_hist(test_ftr_vectors, test_ranges, treshold)
+        result = np.zeros([len(test_ranges), 1], dtype=np.float32)
+        i=0
+        for range in test_ranges:
+            test_histograms = BowDB.get_frequency_hist(test_ftr_vectors[range[0]:range[1]], test_ranges, treshold)[0]
+            test_set = np.float32(test_histograms).reshape(-1, BowDB.n_bins)
+            result = test_svm.predict(test_set)[1]
+            # plt.imshow(result)
+            # plt.show()
+            i+=1
+        return [result, db.get_all_data()]
 
-        test_set = np.float32(test_histograms).reshape(-1, BowDB.n_bins)
-
-        svm = cv2.ml_SVM.create()
-        svm = svm.load('svm_data.dat')
-        result = svm.predict(test_set)[1]
-        plt.imshow(result)
-        plt.show()
-
-
-    # programPause = input("Press the <ENTER> key to continue...")

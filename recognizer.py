@@ -1,5 +1,8 @@
 from CV_Haifa.BowDB import train
 from CV_Haifa.BowDB import test
+from matplotlib import pyplot as plt
+import cv2
+
 
 #
 #
@@ -22,6 +25,22 @@ testImageDirName='test/'
 
 def recognizer():
     train()
-    test(testImageDirName)
+    result = test(testImageDirName)
+    labels = result[0]
+    images = result[1]
+    plt.imshow(labels)
+    print(str(sum(labels)))
+    plt.show()
+    i = 0
+    for img in images:
+        plt.imshow(img)
+
+        textstr = str(labels[i])
+        props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+        plt.text(0, 0, textstr, fontsize=34,
+            verticalalignment='top', bbox=props)
+        i += 1
+        plt.show()
+
 
 recognizer()
