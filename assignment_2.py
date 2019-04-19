@@ -6,7 +6,7 @@ import os
 import time
 from CV_Haifa.BowDB import train
 from CV_Haifa.BowDB import test
-from CV_Haifa.BowDB import MotorbikeDB
+from CV_Haifa.BowDB import BowDB
 from CV_Haifa.BowDB import ElephantDB
 
 from matplotlib import pyplot as plt
@@ -17,8 +17,7 @@ from matplotlib import pyplot as plt
 # You will report several recognition testing results.
 #     Submit all the testing results in your HW report.
 #     Results are quantified by Precision and Recall values(see slide 94 & 96 in lecture slides CV04 – or look online).
-#     Plot in Precision - Recall
-#     ROC plot.
+#     Plot in Precision - Recall ROC plot.
 #     When requested to report performance:
 #     plot the ROC curve for the system parameter and then
 #     report the best parameter and the actual Precision / Recall Values.
@@ -34,7 +33,78 @@ from matplotlib import pyplot as plt
 #        ii) Plot Accuracy as a function of the dependent variable.
 #        Accuracy is defined as: (TP + TN) /  # AllData
 #        iii) Print best variable value according to ROC curve.
+min_treshold = 400
+max_treshold = 410
+step = 1
+
+air_precision=[]
+air_recall=[]
+moto_precision=[]
+moto_recall=[]
+elef_precision=[]
+elef_recall=[]
+
+air_acc = []
+moto_acc = []
+elef_acc = []
+
+y=[]
+scores=[]
+
+for th in range(min_treshold, max_treshold, step):
+    train(treshold=th)
+    act_labels, exp_labels = test(treshold=th)
+    air_roc = BowDB.roc_curve(0, act_labels, exp_labels)
+    air_precision.append(air_roc[0])
+    air_recall.append(air_roc[1])
+    moto_roc = BowDB.roc_curve(1, act_labels, exp_labels)
+    moto_precision.append(moto_roc[0])
+    moto_recall.append(moto_roc[1])
+    elef_roc = BowDB.roc_curve(2, act_labels, exp_labels)
+    elef_precision.append(elef_roc[0])
+    elef_recall.append(elef_roc[1])
+
+    air_acc.append(BowDB.get_accuracy(0, act_labels, exp_labels))
+    moto_acc.append(BowDB.get_accuracy(1, act_labels, exp_labels))
+    elef_acc.append(BowDB.get_accuracy(2, act_labels, exp_labels))
+
+    from sklearn import metrics
+
+    air_fpr, air_tpr, air_thresholds = metrics.roc_curve(exp_labels, act_labels, pos_label=0)
+    moto_fpr, moto_tpr, moto_thresholds = metrics.roc_curve(exp_labels, act_labels, pos_label=1)
+    elef_fpr, elef_tpr, elef_thresholds = metrics.roc_curve(exp_labels, act_labels, pos_label=2)
+
+    plt.plot(air_fpr, air_tpr)
+    plt.plot(moto_fpr, moto_tpr)
+    plt.plot(elef_fpr, elef_tpr)
+    plt.show()
+
+    y.append(exp_labels)
+    scores.append(act_labels)
+    print(air_acc)
+    print(moto_acc)
+    print(elef_acc)
 #
+# plt.plot(air_precision, air_recall)
+# plt.plot(moto_precision, moto_recall)
+# plt.plot(elef_precision, elef_recall)
+# plt.show()
+#
+# plt.plot(air_acc, np.array(range(len(air_acc))))
+# plt.plot(moto_acc, np.array(range(len(moto_acc))))
+# plt.plot(elef_acc, np.array(range(len(elef_acc))))
+# plt.show()
+
+# from sklearn import metrics
+#
+# air_fpr, air_tpr, air_thresholds = metrics.roc_curve(y, scores, pos_label=0)
+# moto_fpr, moto_tpr, moto_thresholds = metrics.roc_curve(y, scores, pos_label=1)
+# elef_fpr, elef_tpr, elef_thresholds = metrics.roc_curve(y, scores, pos_label=2)
+#
+# plt.plot(air_fpr, air_tpr)
+# plt.plot(moto_fpr, moto_tpr)
+# plt.plot(elef_fpr, elef_tpr)
+# plt.show()
 #     b) Show the change in performance over all the data, as a function of the size of the Dictionary.
 #        (Use the best threshold value found in a) ).
 #        i) Plot ROC curve
@@ -62,13 +132,13 @@ from matplotlib import pyplot as plt
 #        testing(the test data in the 3 classes: Airplane, Elephant and Motorbike).
 
 
-def main():
-
-    train()
-    test()
-    return 0
-
-
-if __name__ == "__main__":
-    main()
-
+# def main():
+#
+#     train()
+#     test()
+#     return 0
+#
+#
+# if __name__ == "__main__":
+#     main()
+# #

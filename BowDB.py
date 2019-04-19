@@ -11,12 +11,12 @@ import pickle
 #
 # e) Put aside test image, (the last 10 images in the class(by name)).
 
-DEFAULT_TRESHOLD = 380
+DEFAULT_TRESHOLD = 460
 
 
 class BowDB:
 
-    n_bins = 32
+    n_bins = 16
 
     def __init__(self, dir_path):
         self.__images = []
@@ -47,7 +47,7 @@ class BowDB:
         return desc, desc_size
 
     @staticmethod
-    def __get_feature_vectors(samples, n_features=470):
+    def __get_feature_vectors(samples, n_features=105):
         feature_vectors = []
         n_keypoints = 0
         desc_size = 0
@@ -117,6 +117,7 @@ class BowDB:
             distances = distances[distances < treshold]
             # distances = distances[distances > 0]
             max_dist = max(distances[:])
+            print("Max dist: " + str(max_dist))
         return samples_hist, clasters_means, distances, max_dist
 
     @staticmethod
@@ -296,7 +297,7 @@ def train(treshold = DEFAULT_TRESHOLD):
     #                    gamma=0.2)
 
     svm = cv2.ml_SVM.create()
-    svm.setKernel(cv2.ml.SVM_RBF)
+    svm.setKernel(cv2.ml.SVM_LINEAR)
     svm.setType(cv2.ml.SVM_C_SVC)
     svm.trainAuto(samples=train_set, layout=cv2.ml.ROW_SAMPLE, responses=responses)
     svm.save('svm_data.dat')
@@ -305,7 +306,7 @@ def train(treshold = DEFAULT_TRESHOLD):
     with open('means.pkl', 'wb') as f:  # Python 3: open(..., 'wb')
         pickle.dump(means, f)
 
-def test(testImageDirName='', treshold = DEFAULT_TRESHOLD):
+def test(treshold = DEFAULT_TRESHOLD, testImageDirName=''):
 
     test_svm = cv2.ml_SVM.create()
     test_svm = test_svm.load('svm_data.dat')
@@ -377,14 +378,14 @@ def test(testImageDirName='', treshold = DEFAULT_TRESHOLD):
         exp_labels = np.concatenate((exp_labels, elef_exp_labels), axis=0)
 
         result = test_svm.predict(test_set)[1]
-        plt.imshow(result)
-        plt.show()
-        print(str(sum(result)))
-
-        conf_matrix = BowDB.confusion_matrix(3, result, exp_labels)
-        plt.imshow(conf_matrix)
-        plt.colorbar()
-        plt.show()
+        # plt.imshow(result)
+        # plt.show()
+        # print(str(sum(result)))
+        #
+        # conf_matrix = BowDB.confusion_matrix(3, result, exp_labels)
+        # plt.imshow(conf_matrix)
+        # plt.colorbar()
+        # plt.show()
 
         return [result, exp_labels]
     else:

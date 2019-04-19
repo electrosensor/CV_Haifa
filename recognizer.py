@@ -24,6 +24,8 @@ testImageDirName='test/'
 
 
 def recognizer():
+    categories = ['Airplanes', 'Motobike', 'Elephants']
+
     train()
     result = test(testImageDirName)
     labels = result[0]
@@ -35,10 +37,9 @@ def recognizer():
     for img in images:
         plt.imshow(img)
 
-        textstr = str(labels[i])
-        props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
-        plt.text(0, 0, textstr, fontsize=34,
-            verticalalignment='top', bbox=props)
+        textstr = categories[int(labels[i])]
+        props = dict(boxstyle='round', facecolor='wheat', alpha=1)
+        plt.text(0, 0, textstr, fontsize=34, verticalalignment='top', bbox=props)
         i += 1
         plt.show()
 
