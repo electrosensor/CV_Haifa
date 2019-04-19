@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import os
 from matplotlib import pyplot as plt
-
+import pickle
 
 # 1)Create a DataBase –
 # We will be using a set Database that can be found here.
@@ -10,11 +10,13 @@ from matplotlib import pyplot as plt
 # They each have around 100 images each.The LAST 10 images are for testing.
 #
 # e) Put aside test image, (the last 10 images in the class(by name)).
-treshold =  340
+
+DEFAULT_TRESHOLD = 380
+
 
 class BowDB:
 
-    n_bins = 4
+    n_bins = 32
 
     def __init__(self, dir_path):
         self.__images = []
@@ -52,7 +54,7 @@ class BowDB:
         ranges = []
         for img in samples:
             ftr_vector, desc_size = BowDB.__make_ftr_vector(img, n_features)
-            ranges.append((n_keypoints, n_keypoints + ftr_vector.shape[0]))
+            ranges.append([n_keypoints, n_keypoints + ftr_vector.shape[0]])
             n_keypoints += ftr_vector.shape[0]
             feature_vectors.append(ftr_vector)
 
@@ -75,28 +77,37 @@ class BowDB:
         return BowDB.__get_feature_vectors(self.__images)
 
     @staticmethod
-    def get_clasters(feature_vectors, treshhold):
+    def get_clasters(feature_vectors, is_test = False, means = 0):
         feature_vectors = np.transpose(feature_vectors.astype(np.float32))
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-        retval, labels, centers = cv2.kmeans(data=feature_vectors, K=BowDB.n_bins, bestLabels=None, criteria=criteria, attempts=1, flags=cv2.KMEANS_RANDOM_CENTERS)
+        if is_test:
+            retval, labels, centers = cv2.kmeans(data=feature_vectors, K=BowDB.n_bins, bestLabels=None, centers=means, criteria=criteria, attempts=1, flags=cv2.KMEANS_RANDOM_CENTERS)
+
+        else:
+            retval, labels, centers = cv2.kmeans(data=feature_vectors, K=BowDB.n_bins, bestLabels=None, criteria=criteria, attempts=1, flags=cv2.KMEANS_RANDOM_CENTERS)
         #pass over D(centers,labels) and treshold it such as D(centers,labels) > treshold
 
         return centers, labels
 
     @staticmethod
-    def get_frequency_hist(ftr_vectors, ranges, treshold=0):
-        clasters_means, labels = BowDB.get_clasters(ftr_vectors, treshold)
+    def get_freq_hists(ftr_vectors, ranges, treshold=0, is_test=False, clasters_means=0):
+        if is_test:
+            clasters_means, labels = BowDB.get_clasters(ftr_vectors, is_test=True, means=clasters_means)
+        else:
+            clasters_means, labels = BowDB.get_clasters(ftr_vectors)
+
         samples_hist = np.zeros([len(ranges), BowDB.n_bins], dtype=np.int32)
         distances = np.zeros(ftr_vectors.shape[1], dtype=np.int32)
         max_dist = 0
         for i in range(len(ranges)):
-            relevant_lbls = labels[ranges[i][0]:ranges[i][1]]
+            idx_from = ranges[i][0]
+            idx_to = ranges[i][1]
+            relevant_lbls = labels[idx_from:idx_to]
             if treshold > 0:
-                curr_ftr_vectors = ftr_vectors[:, ranges[i][0]:ranges[i][1]]
+                curr_ftr_vectors = ftr_vectors[:, idx_from:idx_to]
                 curr_claster = clasters_means[relevant_lbls[:]]
                 dist = np.linalg.norm(np.transpose(np.transpose(curr_claster[:, 0]) - curr_ftr_vectors), axis=1)
-
-                distances[ranges[i][0]:ranges[i][1]] = dist
+                distances[idx_from:idx_to] = dist
                 relevant_lbls = relevant_lbls[dist < treshold]
                 # dist = dist[dist < treshold]
                 # relevant_lbls = relevant_lbls[dist > 0]
@@ -106,7 +117,15 @@ class BowDB:
             distances = distances[distances < treshold]
             # distances = distances[distances > 0]
             max_dist = max(distances[:])
-        return samples_hist, distances, max_dist
+        return samples_hist, clasters_means, distances, max_dist
+
+    @staticmethod
+    def get_test_freq_hist(ftr_vectors, range, treshold, clasters_means):
+        return BowDB.get_freq_hists(ftr_vectors, range, treshold=treshold, is_test=True, clasters_means=clasters_means)
+
+    @staticmethod
+    def get_train_freq_hist(ftr_vectors, ranges, treshold=0):
+        return BowDB.get_freq_hists(ftr_vectors, ranges=ranges, treshold=treshold)
 
     @staticmethod
     def __false_pos(checked_class, act_labels, exp_labels):
@@ -176,7 +195,7 @@ class ElephantDB(BowDB):
         self.label = 2
 
 
-def train(treshold = 340):
+def train(treshold = DEFAULT_TRESHOLD):
     air_db = AirplaneDB()
     moto_db = MotorbikeDB()
     elef_db = ElephantDB()
@@ -220,14 +239,28 @@ def train(treshold = 340):
     #      (usually a threshold above which the feature is too far from all clusters).
     #
     # Make sure the routine can read a dictionary that was saved to a file ( in step 2).
+    air_last_idx = air_train_ranges[len(air_train_ranges)-1][1]
+    moto_last_idx = moto_train_ranges[len(moto_train_ranges)-1][1]
+    for i in range(len(moto_train_ranges)):
+        moto_train_ranges[i][0] += air_last_idx
+        moto_train_ranges[i][1] += air_last_idx
+    for i in range(len(elef_train_ranges)):
+        elef_train_ranges[i][0] += moto_last_idx
+        elef_train_ranges[i][1] += moto_last_idx
 
-    air_train_histograms, air_train_dists, air_train_max_dist = AirplaneDB.get_frequency_hist(air_train_ftr_vectors, air_train_ranges,treshold)
-    moto_train_histograms, moto_train_dists, moto_train_max_dist = MotorbikeDB.get_frequency_hist( moto_train_ftr_vectors, moto_train_ranges, treshold)
-    elef_train_histograms, elef_train_dists, elef_train_max_dist = ElephantDB.get_frequency_hist(elef_train_ftr_vectors,elef_train_ranges,treshold)
+    train_ftr_vectors = np.concatenate((air_train_ftr_vectors, moto_train_ftr_vectors), axis=1)
+    train_ftr_vectors = np.concatenate((train_ftr_vectors, elef_train_ftr_vectors), axis=1)
 
-    air_train_X = 0.1 * air_db.label * np.ones((len(air_train_dists)))
-    moto_train_X = 0.1 * moto_db.label * np.ones((len(moto_train_dists)))
-    elef_train_X = 0.1 * elef_db.label * np.ones((len(elef_train_dists)))
+    train_ranges = air_train_ranges + moto_train_ranges + elef_train_ranges
+
+    train_histograms, means, train_dists, air_train_max_dist = BowDB.get_train_freq_hist(train_ftr_vectors, train_ranges, treshold)
+    # moto_train_histograms, moto_means, moto_train_dists, moto_train_max_dist = MotorbikeDB.get_train_freq_hist(moto_train_ftr_vectors, moto_train_ranges, treshold)
+    # elef_train_histograms, elef_means, elef_train_dists, elef_train_max_dist = ElephantDB.get_train_freq_hist(elef_train_ftr_vectors, elef_train_ranges, treshold)
+    #
+
+    # air_train_X = 0.1 * air_db.label * np.ones((len(air_train_dists)))
+    # moto_train_X = 0.1 * moto_db.label * np.ones((len(moto_train_dists)))
+    # elef_train_X = 0.1 * elef_db.label * np.ones((len(elef_train_dists)))
 
     # plt.scatter(y=air_train_X , x=air_train_dists)
     # plt.scatter(y=moto_train_X , x=moto_train_dists)
@@ -243,16 +276,16 @@ def train(treshold = 340):
 
     # # in SVM::train @param trainData - training data that can be loaded from file using TrainData::loadFromCSV or .created with TrainData::create.
     # air_train_histogramssvm = cv2.ml_SVM()
-    air_train_data = np.float32(air_train_histograms).reshape(-1, BowDB.n_bins)
-    moto_train_data = np.float32(moto_train_histograms).reshape(-1, BowDB.n_bins)
-    elef_train_data = np.float32(elef_train_histograms).reshape(-1, BowDB.n_bins)
+    train_set = np.float32(train_histograms).reshape(-1, BowDB.n_bins)
+    # moto_train_data = np.float32(moto_train_histograms).reshape(-1, BowDB.n_bins)
+    # elef_train_data = np.float32(elef_train_histograms).reshape(-1, BowDB.n_bins)
+    #
+    # train_set = np.concatenate((air_train_data, moto_train_data), axis=0)
+    # train_set = np.concatenate((train_set, elef_train_data), axis=0)
 
-    train_set = np.concatenate((air_train_data, moto_train_data), axis=0)
-    train_set = np.concatenate((train_set, elef_train_data), axis=0)
-
-    air_responses = air_db.label * np.ones([air_train_histograms.shape[0], 1], dtype=np.int32)
-    moto_responses = moto_db.label * np.ones([moto_train_histograms.shape[0], 1], dtype=np.int32)
-    elef_responses = elef_db.label * np.ones([elef_train_histograms.shape[0], 1], dtype=np.int32)
+    air_responses = air_db.label * np.ones([len(air_db.get_train_set()), 1], dtype=np.int32)
+    moto_responses = moto_db.label * np.ones([len(moto_db.get_train_set()), 1], dtype=np.int32)
+    elef_responses = elef_db.label * np.ones([len(elef_db.get_train_set()), 1], dtype=np.int32)
 
     responses = np.concatenate((air_responses, moto_responses), axis=0)
     responses = np.concatenate((responses, elef_responses), axis=0)
@@ -268,11 +301,20 @@ def train(treshold = 340):
     svm.trainAuto(samples=train_set, layout=cv2.ml.ROW_SAMPLE, responses=responses)
     svm.save('svm_data.dat')
 
+ # Saving the objects:
+    with open('means.pkl', 'wb') as f:  # Python 3: open(..., 'wb')
+        pickle.dump(means, f)
 
-def test(testImageDirName='', treshold = 340):
+def test(testImageDirName='', treshold = DEFAULT_TRESHOLD):
 
     test_svm = cv2.ml_SVM.create()
     test_svm = test_svm.load('svm_data.dat')
+
+    means = np.float32([BowDB.n_bins])
+    # Loading the objects:
+    if os.path.exists('means.pkl'):
+        with open('means.pkl', 'rb') as f:  # Python 3: open(..., 'rb')
+            means = pickle.load(f)
 
     if(testImageDirName is ''):
         air_db = AirplaneDB()
@@ -286,32 +328,50 @@ def test(testImageDirName='', treshold = 340):
         air_test_ftr_vectors, air_test_ranges = air_db.get_test_ftr_vecs()
         moto_test_ftr_vectors, moto_test_ranges = moto_db.get_test_ftr_vecs()
         elef_test_ftr_vectors, elef_test_ranges = elef_db.get_test_ftr_vecs()
-        print(str(air_test_ftr_vectors))
+        # print(str(air_test_ftr_vectors))
 
-        air_test_histograms, air_test_dists, air_test_max_dist = AirplaneDB.get_frequency_hist(air_test_ftr_vectors,air_test_ranges, treshold)
-        moto_test_histograms, moto_test_dists, moto_test_max_dist = MotorbikeDB.get_frequency_hist(moto_test_ftr_vectors,moto_test_ranges, treshold)
-        elef_test_histograms, elef_test_dists, elef_test_max_dist = ElephantDB.get_frequency_hist(elef_test_ftr_vectors,elef_test_ranges,treshold)
+        test_ftr_vectors = np.concatenate((air_test_ftr_vectors, moto_test_ftr_vectors), axis=1)
+        test_ftr_vectors = np.concatenate((test_ftr_vectors, elef_test_ftr_vectors), axis=1)
 
-        air_test_X = 0.1 * air_db.label * np.ones((len(air_test_dists)))
-        moto_test_X = 0.1 * moto_db.label * np.ones((len(moto_test_dists)))
-        elef_test_X = 0.1 * elef_db.label * np.ones((len(elef_test_dists)))
+        air_last_idx = air_test_ranges[len(air_test_ranges) - 1][1]
+        moto_last_idx = air_last_idx + moto_test_ranges[len(moto_test_ranges) - 1][1]
+        for i in range(len(moto_test_ranges)):
+            moto_test_ranges[i][0] += air_last_idx
+            moto_test_ranges[i][1] += air_last_idx
+        for i in range(len(elef_test_ranges)):
+            elef_test_ranges[i][0] += moto_last_idx
+            elef_test_ranges[i][1] += moto_last_idx
+
+        test_ranges = air_test_ranges + moto_test_ranges + elef_test_ranges
+
+        print(test_ftr_vectors[:, 0])
+        print(test_ftr_vectors[:, (test_ftr_vectors.shape[1]-1)])
+        print(str(test_ranges))
+        print(len(test_ranges))
+
+        test_histograms = BowDB.get_test_freq_hist(test_ftr_vectors, test_ranges, treshold, means)[0]
+        print(str(test_histograms[0]))
+        print(str(test_histograms[len(test_histograms)-1]))
+        # air_test_X = 0.1 * air_db.label * np.ones((len(air_test_dists)))
+        # moto_test_X = 0.1 * moto_db.label * np.ones((len(moto_test_dists)))
+        # elef_test_X = 0.1 * elef_db.label * np.ones((len(elef_test_dists)))
 
         # plt.scatter(y=air_test_X , x=air_test_dists)
         # plt.scatter(y=moto_test_X , x=moto_test_dists)
         # plt.scatter(y=elef_test_X , x=elef_test_dists)
         # plt.legend()
         # plt.show()
+        test_set = np.float32(test_histograms).reshape(-1, BowDB.n_bins)
+        # air_test_data = np.float32(air_test_histograms).reshape(-1, BowDB.n_bins)
+        # moto_test_data = np.float32(moto_test_histograms).reshape(-1, BowDB.n_bins)
+        # elef_test_data = np.float32(elef_test_histograms).reshape(-1, BowDB.n_bins)
 
-        air_test_data = np.float32(air_test_histograms).reshape(-1, BowDB.n_bins)
-        moto_test_data = np.float32(moto_test_histograms).reshape(-1, BowDB.n_bins)
-        elef_test_data = np.float32(elef_test_histograms).reshape(-1, BowDB.n_bins)
+        # test_set = np.concatenate((air_test_data, moto_test_data), axis=0)
+        # test_set = np.concatenate((test_set, elef_test_data), axis=0)
 
-        test_set = np.concatenate((air_test_data, moto_test_data), axis=0)
-        test_set = np.concatenate((test_set, elef_test_data), axis=0)
-
-        air_exp_labels = air_db.label * np.ones([air_test_histograms.shape[0], 1], dtype=np.int32)
-        moto_exp_labels = moto_db.label * np.ones([moto_test_histograms.shape[0], 1], dtype=np.int32)
-        elef_exp_labels = elef_db.label * np.ones([elef_test_histograms.shape[0], 1], dtype=np.int32)
+        air_exp_labels = air_db.label * np.ones([len(air_db.get_test_set()), 1], dtype=np.int32)
+        moto_exp_labels = moto_db.label * np.ones([len(moto_db.get_test_set()), 1], dtype=np.int32)
+        elef_exp_labels = elef_db.label * np.ones([len(elef_db.get_test_set()), 1], dtype=np.int32)
 
         exp_labels = np.concatenate((air_exp_labels, moto_exp_labels), axis=0)
         exp_labels = np.concatenate((exp_labels, elef_exp_labels), axis=0)
@@ -332,16 +392,21 @@ def test(testImageDirName='', treshold = 340):
         print("Test set len of BowDB is " + str(len(db.get_all_data())))
 
         test_ftr_vectors, test_ranges = db.get_all_ftr_vecs()
-        print(str(test_ftr_vectors))
+        print(str(test_ftr_vectors[:, 0]))
+        print(test_ftr_vectors[:, (test_ftr_vectors.shape[1]-1)])
+        print(str(test_ranges))
+        print(len(test_ranges))
 
-        result = np.zeros([len(test_ranges), 1], dtype=np.float32)
-        i=0
-        for range in test_ranges:
-            test_histograms = BowDB.get_frequency_hist(test_ftr_vectors[range[0]:range[1]], test_ranges, treshold)[0]
-            test_set = np.float32(test_histograms).reshape(-1, BowDB.n_bins)
-            result = test_svm.predict(test_set)[1]
+        test_histograms = np.zeros([len(test_ranges), db.n_bins], dtype=np.float32)
+
+        test_histograms = BowDB.get_test_freq_hist(test_ftr_vectors, test_ranges, treshold, means)[0]
+
+        print(str(test_histograms[0]))
+        print(str(test_histograms[len(test_histograms) - 1]))
+        test_set = np.float32(test_histograms).reshape(-1, BowDB.n_bins)
+
+        result = test_svm.predict(test_set)[1]
             # plt.imshow(result)
             # plt.show()
-            i+=1
         return [result, db.get_all_data()]
 
