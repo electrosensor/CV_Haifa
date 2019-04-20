@@ -3,6 +3,9 @@ import numpy as np
 import os
 from matplotlib import pyplot as plt
 import pickle
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVC
+import dlib
 
 # 1)Create a DataBase –
 # We will be using a set Database that can be found here.
@@ -11,12 +14,13 @@ import pickle
 #
 # e) Put aside test image, (the last 10 images in the class(by name)).
 
-DEFAULT_TRESHOLD = 460
-
+DEFAULT_TRESHOLD = 840
+DEFAULT_DESC_DIM = 72
+DEFAULT_DICT_SIZE = 32
 
 class BowDB:
 
-    n_bins = 16
+    n_bins = 32
 
     def __init__(self, dir_path):
         self.__images = []
@@ -26,12 +30,16 @@ class BowDB:
             self.__images.append(img)
         print(str(len(self.__images)) + " images were loaded from " + dir_path)
 
+    @staticmethod
+    def set_n_bins(k):
+        BowDB.n_bins = k
+
     def get_train_set(self):
-        length = round(len(self.__images)*0.85)
+        length = round(len(self.__images)*0.9)
         return self.__images[:length]
 
     def get_test_set(self):
-        length = round(len(self.__images)*0.85)
+        length = round(len(self.__images)*0.9)
         return self.__images[length:]
 
     def get_all_data(self):
@@ -47,45 +55,66 @@ class BowDB:
         return desc, desc_size
 
     @staticmethod
-    def __get_feature_vectors(samples, n_features=105):
+    def __make_hog_ftr_vector(image, n_feature):
+        winSize = (64, 64)
+        blockSize = (16, 16)
+        blockStride = (8, 8)
+        cellSize = (8, 8)
+        nbins = 9
+        derivAperture = 1
+        winSigma = 4.
+        histogramNormType = 0
+        L2HysThreshold = 2.0000000000000001e-01
+        gammaCorrection = 0
+        nlevels = 64
+        hog = cv2.HOGDescriptor(winSize, blockSize, blockStride, cellSize, nbins, derivAperture, winSigma, histogramNormType, L2HysThreshold, gammaCorrection, nlevels)
+        # compute(img[, winStride[, padding[, locations]]]) -> descriptors
+
+        winStride = (8, 8)
+        padding = (8, 8)
+        locations = ((10, 20),)
+        hist = hog.compute(image, winStride=winStride, padding=padding, locations=locations)
+        return hist, 1
+
+    @staticmethod
+    def __get_feature_vectors(samples, n_features):
         feature_vectors = []
         n_keypoints = 0
         desc_size = 0
         ranges = []
         for img in samples:
-            ftr_vector, desc_size = BowDB.__make_ftr_vector(img, n_features)
+            ftr_vector, desc_size = BowDB.__make_hog_ftr_vector(img, n_features)
             ranges.append([n_keypoints, n_keypoints + ftr_vector.shape[0]])
             n_keypoints += ftr_vector.shape[0]
             feature_vectors.append(ftr_vector)
 
-        descriptors = np.zeros([desc_size, n_keypoints], dtype=np.uint8)
+        descriptors = np.zeros([len(feature_vectors), ftr_vector.shape[0]], dtype=np.float32)
         i = 0
 
         for vec in feature_vectors:
             tvec = np.transpose(vec)
-            descriptors[:, i:i+tvec.shape[1]] = tvec
-            i += tvec.shape[1]
+            descriptors[i, :] = tvec[:]
+            i += 1
         return descriptors, ranges
 
-    def get_train_ftr_vecs(self):
-        return BowDB.__get_feature_vectors(self.get_train_set())
+    def get_train_ftr_vecs(self, n_features=DEFAULT_DESC_DIM):
+        return BowDB.__get_feature_vectors(self.get_train_set(), n_features)
 
-    def get_test_ftr_vecs(self):
-        return BowDB.__get_feature_vectors(self.get_test_set())
+    def get_test_ftr_vecs(self, n_features=DEFAULT_DESC_DIM):
+        return BowDB.__get_feature_vectors(self.get_test_set(), n_features)
 
-    def get_all_ftr_vecs(self):
-        return BowDB.__get_feature_vectors(self.__images)
+    def get_all_ftr_vecs(self, n_features=DEFAULT_DESC_DIM):
+        return BowDB.__get_feature_vectors(self.__images, n_features)
 
     @staticmethod
     def get_clasters(feature_vectors, is_test = False, means = 0):
-        feature_vectors = np.transpose(feature_vectors.astype(np.float32))
+        # feature_vectors = np.transpose(feature_vectors.astype(np.float32))
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
         if is_test:
             retval, labels, centers = cv2.kmeans(data=feature_vectors, K=BowDB.n_bins, bestLabels=None, centers=means, criteria=criteria, attempts=1, flags=cv2.KMEANS_RANDOM_CENTERS)
 
         else:
             retval, labels, centers = cv2.kmeans(data=feature_vectors, K=BowDB.n_bins, bestLabels=None, criteria=criteria, attempts=1, flags=cv2.KMEANS_RANDOM_CENTERS)
-        #pass over D(centers,labels) and treshold it such as D(centers,labels) > treshold
 
         return centers, labels
 
@@ -156,6 +185,18 @@ class BowDB:
         return accuracy
 
     @staticmethod
+    def get_avg_accuracy_3class(act_labels, exp_labels):
+        first_acc = BowDB.get_accuracy(0, act_labels, exp_labels)
+        first_size = len(exp_labels[exp_labels == 0])
+        second_acc = BowDB.get_accuracy(1, act_labels, exp_labels)
+        second_size = len(exp_labels[exp_labels == 1])
+        third_acc = BowDB.get_accuracy(2, act_labels, exp_labels)
+        third_size = len(exp_labels[exp_labels == 2])
+        all_size = len(exp_labels)
+        accuracy = first_acc*(first_size/all_size) + second_acc*(second_size/all_size) + third_acc*(third_size/all_size)
+        return accuracy
+
+    @staticmethod
     def roc_curve(checked_class, act_labels, exp_labels):
         FP = BowDB.__false_pos(checked_class, act_labels, exp_labels)
         FN = BowDB.__false_neg(checked_class, act_labels, exp_labels)
@@ -196,7 +237,7 @@ class ElephantDB(BowDB):
         self.label = 2
 
 
-def train(treshold = DEFAULT_TRESHOLD):
+def train(treshold = DEFAULT_TRESHOLD, desc_n_features=DEFAULT_DESC_DIM, dict_size=DEFAULT_DICT_SIZE):
     air_db = AirplaneDB()
     moto_db = MotorbikeDB()
     elef_db = ElephantDB()
@@ -214,10 +255,11 @@ def train(treshold = DEFAULT_TRESHOLD):
     # new features found in image will be tested against the visual words.
     # Another possible system parameter will be the complexity (dimension) of the feature descriptor.
 
-    air_train_ftr_vectors, air_train_ranges = air_db.get_train_ftr_vecs()
-    moto_train_ftr_vectors, moto_train_ranges = moto_db.get_train_ftr_vecs()
-    elef_train_ftr_vectors, elef_train_ranges = elef_db.get_train_ftr_vecs()
+    air_train_ftr_vectors, air_train_ranges = air_db.get_train_ftr_vecs(n_features=desc_n_features)
+    moto_train_ftr_vectors, moto_train_ranges = moto_db.get_train_ftr_vecs(n_features=desc_n_features)
+    elef_train_ftr_vectors, elef_train_ranges = elef_db.get_train_ftr_vecs(n_features=desc_n_features)
 
+    BowDB.set_n_bins(dict_size)
     # # Saving the objects:
     # with open('weights.pkl', 'wb') as f:  # Python 3: open(..., 'wb')
     #     pickle.dump(ql.weights, f)
@@ -249,8 +291,8 @@ def train(treshold = DEFAULT_TRESHOLD):
         elef_train_ranges[i][0] += moto_last_idx
         elef_train_ranges[i][1] += moto_last_idx
 
-    train_ftr_vectors = np.concatenate((air_train_ftr_vectors, moto_train_ftr_vectors), axis=1)
-    train_ftr_vectors = np.concatenate((train_ftr_vectors, elef_train_ftr_vectors), axis=1)
+    train_ftr_vectors = np.concatenate((air_train_ftr_vectors, moto_train_ftr_vectors), axis=0)
+    train_ftr_vectors = np.concatenate((train_ftr_vectors, elef_train_ftr_vectors), axis=0)
 
     train_ranges = air_train_ranges + moto_train_ranges + elef_train_ranges
 
@@ -290,26 +332,69 @@ def train(treshold = DEFAULT_TRESHOLD):
 
     responses = np.concatenate((air_responses, moto_responses), axis=0)
     responses = np.concatenate((responses, elef_responses), axis=0)
+
+
+    sc = StandardScaler()
+    train_set_std = sc.fit_transform(train_set)
+
+    # ts = dlib.vectors()
+    # tl = dlib.array()
+    # for i in range(train_set_std.shape[0]):
+    #     ts.append(dlib.vector(train_set_std[i, :]))
+    #     tl.append(responses[i])
+    #     i += 1
     #
-    # svm2_params = dict(kernel_type=cv2.SVM_RB,
-    #                    svm_type=cv2.SVM_C_SVC,
-    #                    C=1,
-    #                    gamma=0.2)
+    # svm = dlib.svm_c_trainer_linear()
+    # svm.be_verbose()
+    # svm.train(ts, tl)
+
+
+    # svm = SVC(C = 5.0, kernel ='rbf', degree = 3, gamma = 0.005, coef0 = 0.0, shrinking = True, probability = True, tol = 0.001, cache_size = 200, class_weight = None, verbose = False, max_iter = -1, decision_function_shape ='ovr', random_state = None)
+    # svm.fit(X=train_set_std, y=responses)
+
+    # # Saving the objects:
+    # with open('svm.pkl', 'wb') as f:  # Python 3: open(..., 'wb')
+    #     pickle.dump(svm, f)
 
     svm = cv2.ml_SVM.create()
     svm.setKernel(cv2.ml.SVM_LINEAR)
     svm.setType(cv2.ml.SVM_C_SVC)
-    svm.trainAuto(samples=train_set, layout=cv2.ml.ROW_SAMPLE, responses=responses)
+    # svm.setC(5.0)
+    # svm.setGamma(1.0)
+
+    svm.train(samples=train_set_std, layout=cv2.ml.ROW_SAMPLE, responses=responses)
     svm.save('svm_data.dat')
+
+    # svm2 = SVC()
+    # # Loading the objects:
+    # if os.path.exists('svm.pkl'):
+    #     with open('svm.pkl', 'rb') as f:  # Python 3: open(..., 'rb')
+    #         svm2 = pickle.load(f)
+
+    result = svm.predict(train_set_std)[1]
+    # plt.scatter(np.array(range(len(result))), result)
+    # plt.show()
+    #
+    # conf_matrix = BowDB.confusion_matrix(3, result, responses)
+    # plt.imshow(conf_matrix)
+    # plt.colorbar()
+    # plt.show()
 
  # Saving the objects:
     with open('means.pkl', 'wb') as f:  # Python 3: open(..., 'wb')
         pickle.dump(means, f)
 
-def test(treshold = DEFAULT_TRESHOLD, testImageDirName=''):
+def test(treshold = DEFAULT_TRESHOLD, testImageDirName='', desc_n_features=DEFAULT_DESC_DIM, dict_size=DEFAULT_DICT_SIZE):
 
-    test_svm = cv2.ml_SVM.create()
-    test_svm = test_svm.load('svm_data.dat')
+    svm = cv2.ml_SVM.create()
+    svm = svm.load('svm_data.dat')
+    BowDB.set_n_bins(dict_size)
+
+    # svm = SVC()
+    # # Loading the objects:
+    # if os.path.exists('svm.pkl'):
+    #     with open('svm.pkl', 'rb') as f:  # Python 3: open(..., 'rb')
+    #         svm = pickle.load(f)
 
     means = np.float32([BowDB.n_bins])
     # Loading the objects:
@@ -326,9 +411,9 @@ def test(treshold = DEFAULT_TRESHOLD, testImageDirName=''):
         print("Test set len of MotorbikeDB is " + str(len(moto_db.get_test_set())))
         print("Test set len of ElephantDB is " + str(len(elef_db.get_test_set())))
 
-        air_test_ftr_vectors, air_test_ranges = air_db.get_test_ftr_vecs()
-        moto_test_ftr_vectors, moto_test_ranges = moto_db.get_test_ftr_vecs()
-        elef_test_ftr_vectors, elef_test_ranges = elef_db.get_test_ftr_vecs()
+        air_test_ftr_vectors, air_test_ranges = air_db.get_test_ftr_vecs(n_features=desc_n_features)
+        moto_test_ftr_vectors, moto_test_ranges = moto_db.get_test_ftr_vecs(n_features=desc_n_features)
+        elef_test_ftr_vectors, elef_test_ranges = elef_db.get_test_ftr_vecs(n_features=desc_n_features)
         # print(str(air_test_ftr_vectors))
 
         test_ftr_vectors = np.concatenate((air_test_ftr_vectors, moto_test_ftr_vectors), axis=1)
@@ -345,14 +430,14 @@ def test(treshold = DEFAULT_TRESHOLD, testImageDirName=''):
 
         test_ranges = air_test_ranges + moto_test_ranges + elef_test_ranges
 
-        print(test_ftr_vectors[:, 0])
-        print(test_ftr_vectors[:, (test_ftr_vectors.shape[1]-1)])
-        print(str(test_ranges))
-        print(len(test_ranges))
+        # print(test_ftr_vectors[:, 0])
+        # print(test_ftr_vectors[:, (test_ftr_vectors.shape[1]-1)])
+        # print(str(test_ranges))
+        # print(len(test_ranges))
 
         test_histograms = BowDB.get_test_freq_hist(test_ftr_vectors, test_ranges, treshold, means)[0]
-        print(str(test_histograms[0]))
-        print(str(test_histograms[len(test_histograms)-1]))
+        # print(str(test_histograms[0]))
+        # print(str(test_histograms[len(test_histograms)-1]))
         # air_test_X = 0.1 * air_db.label * np.ones((len(air_test_dists)))
         # moto_test_X = 0.1 * moto_db.label * np.ones((len(moto_test_dists)))
         # elef_test_X = 0.1 * elef_db.label * np.ones((len(elef_test_dists)))
@@ -377,36 +462,52 @@ def test(treshold = DEFAULT_TRESHOLD, testImageDirName=''):
         exp_labels = np.concatenate((air_exp_labels, moto_exp_labels), axis=0)
         exp_labels = np.concatenate((exp_labels, elef_exp_labels), axis=0)
 
-        result = test_svm.predict(test_set)[1]
-        # plt.imshow(result)
+        sc = StandardScaler()
+
+        test_set_std = sc.fit_transform(test_set)
+        # result = test_svm.predict(test_set_std)[1]
+
+        result = svm.predict(test_set_std)[1]
+        # plt.scatter(np.array(range(len(result))), result)
         # plt.show()
-        # print(str(sum(result)))
-        #
+
+        # score = svm.score(test_set_std, exp_labels)
+
         # conf_matrix = BowDB.confusion_matrix(3, result, exp_labels)
         # plt.imshow(conf_matrix)
         # plt.colorbar()
         # plt.show()
+        accs = []
+        accs.append(BowDB.get_accuracy(0, result, exp_labels))
+        accs.append(BowDB.get_accuracy(1, result, exp_labels))
+        accs.append(BowDB.get_accuracy(2, result, exp_labels))
 
-        return [result, exp_labels]
+        avg_acc = BowDB.get_avg_accuracy_3class(result, exp_labels)
+        print("Accuracy is: " + str(avg_acc))
+
+        return [result, exp_labels, accs, avg_acc]
     else:
         db = BowDB(testImageDirName)
         print("Test set len of BowDB is " + str(len(db.get_all_data())))
 
-        test_ftr_vectors, test_ranges = db.get_all_ftr_vecs()
-        print(str(test_ftr_vectors[:, 0]))
-        print(test_ftr_vectors[:, (test_ftr_vectors.shape[1]-1)])
-        print(str(test_ranges))
-        print(len(test_ranges))
+        test_ftr_vectors, test_ranges = db.get_all_ftr_vecs(n_features=desc_n_features)
+        # print(str(test_ftr_vectors[:, 0]))
+        # print(test_ftr_vectors[:, (test_ftr_vectors.shape[1]-1)])
+        # print(str(test_ranges))
+        # print(len(test_ranges))
 
-        test_histograms = np.zeros([len(test_ranges), db.n_bins], dtype=np.float32)
+        # test_histograms = np.zeros([len(test_ranges), db.n_bins], dtype=np.float32)
 
         test_histograms = BowDB.get_test_freq_hist(test_ftr_vectors, test_ranges, treshold, means)[0]
 
-        print(str(test_histograms[0]))
-        print(str(test_histograms[len(test_histograms) - 1]))
+        # print(str(test_histograms[0]))
+        # print(str(test_histograms[len(test_histograms) - 1]))
         test_set = np.float32(test_histograms).reshape(-1, BowDB.n_bins)
 
-        result = test_svm.predict(test_set)[1]
+        sc = StandardScaler()
+        test_set_std = sc.fit_transform(test_set)
+
+        result = svm.predict(test_set_std)[1]
             # plt.imshow(result)
             # plt.show()
         return [result, db.get_all_data()]

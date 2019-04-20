@@ -2,7 +2,7 @@ from CV_Haifa.BowDB import train
 from CV_Haifa.BowDB import test
 from matplotlib import pyplot as plt
 import cv2
-
+import numpy as np
 
 #
 #
@@ -27,11 +27,10 @@ def recognizer():
     categories = ['Airplanes', 'Motobike', 'Elephants']
 
     train()
-    result = test(testImageDirName)
+    result = test(testImageDirName=testImageDirName)
     labels = result[0]
     images = result[1]
-    plt.imshow(labels)
-    print(str(sum(labels)))
+    plt.scatter(np.array(range(len(labels))), labels)
     plt.show()
     i = 0
     for img in images:
