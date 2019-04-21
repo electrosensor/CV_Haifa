@@ -24,8 +24,8 @@ testImageDirName='test/'
 def recognizer():
     categories = ['Airplane', 'Motobike', 'Elephant']
 
-    train()
-    result = test(testImageDirName=testImageDirName)
+    train(class_list=categories)
+    result = test(class_list=categories, testImageDirName=testImageDirName)
     labels = result[0]
     images = result[1]
     plt.scatter(np.array(range(len(labels))), labels)

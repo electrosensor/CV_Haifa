@@ -131,6 +131,31 @@ class BowDB:
             return samples_hist, clasters_means
 
     @staticmethod
+    def train_svm(X, y):
+        # sc = StandardScaler()
+        # train_set_std = sc.fit_transform(X)
+
+        svm = cv2.ml_SVM.create()
+        svm.setKernel(cv2.ml.SVM_RBF)
+        svm.setType(cv2.ml.SVM_C_SVC)
+        svm.setC(50.0)
+        svm.setGamma(0.0006)
+
+        svm.train(samples=X, layout=cv2.ml.ROW_SAMPLE, responses=y)
+        svm.save('svm_data.dat')
+
+    @staticmethod
+    def predict_svm(X):
+
+        # sc = StandardScaler()
+        # test_set_std = sc.fit_transform(X)
+
+        svm = cv2.ml_SVM.create()
+        svm = svm.load('svm_data.dat')
+        result = svm.predict(X)[1]
+        return result
+
+    @staticmethod
     def __false_pos(checked_class, act_labels, exp_labels):
         result = (act_labels != checked_class) & (exp_labels == checked_class)
         return sum(result)
@@ -196,95 +221,122 @@ class AirplaneDB(BowDB):
     def __init__(self):
         BowDB.__init__(self, "Datasets/Airplane/")
         self.label = 0
+        self.name = 'Airplane'
 
 
 class MotorbikeDB(BowDB):
     def __init__(self):
         BowDB.__init__(self, "Datasets/Motorbike/")
         self.label = 1
-
+        self.name = 'Motorbike'
 
 class ElephantDB(BowDB):
     def __init__(self):
         BowDB.__init__(self, "Datasets/Elephant/")
         self.label = 2
+        self.name = 'Elephant'
 
+class ChairDB(BowDB):
+    def __init__(self):
+        BowDB.__init__(self, "Datasets/Chair/")
+        self.label = 3
+        self.name = 'Chair'
 
-def train(treshold = DEFAULT_TRESHOLD, desc_n_features=DEFAULT_DESC_DIM, dict_size=DEFAULT_DICT_SIZE):
-    air_db = AirplaneDB()
-    moto_db = MotorbikeDB()
-    elef_db = ElephantDB()
+class FerryDB(BowDB):
+    def __init__(self):
+        BowDB.__init__(self, "Datasets/Ferry/")
+        self.label = 4
+        self.name = 'Ferry'
 
-    print("Train set len of AirplaneDB is " + str(len(air_db.get_train_set())))
-    print("Train set len of MotorbikeDB is " + str(len(moto_db.get_train_set())))
-    print("Train set len of ElephantDB is " + str(len(elef_db.get_train_set())))
+class WheelchairDB(BowDB):
+    def __init__(self):
+        BowDB.__init__(self, "Datasets/Wheelchair/")
+        self.label = 5
+        self.name = 'Wheelchair'
 
-    # 2)   Build visual word dictionary –
-
-    air_train_ftr_vectors, air_train_ranges = air_db.get_train_ftr_vecs(n_features=desc_n_features)
-    moto_train_ftr_vectors, moto_train_ranges = moto_db.get_train_ftr_vecs(n_features=desc_n_features)
-    elef_train_ftr_vectors, elef_train_ranges = elef_db.get_train_ftr_vecs(n_features=desc_n_features)
+def train(class_list=[], treshold = DEFAULT_TRESHOLD, desc_n_features=DEFAULT_DESC_DIM, dict_size=DEFAULT_DICT_SIZE):
 
     BowDB.set_n_bins(dict_size)
 
+    is_air = 'Airplane' in class_list
+    is_moto = 'Motobike' in class_list
+    is_elef = 'Elephant' in class_list
+    is_chair = 'Chair' in class_list
+    is_ferry = 'Ferry' in class_list
+    is_wchair = 'Wheelchair' in class_list
+
+    dbs = []
+    if is_air:
+        dbs.append(AirplaneDB())
+    if is_moto:
+        dbs.append(MotorbikeDB())
+    if is_elef:
+        dbs.append(ElephantDB())
+    if is_chair:
+        dbs.append(ChairDB())
+    if is_ferry:
+        dbs.append(FerryDB())
+    if is_wchair:
+        dbs.append(WheelchairDB())
+
+    # 2)   Build visual word dictionary –
+
+    all_train_feature_vecs = []
+    all_train_ranges = []
+    for db in dbs:
+        print("Train set len of " + db.name + " is " + str(len(db.get_train_set())))
+        train_ftr_vectors, train_ranges = db.get_train_ftr_vecs(n_features=desc_n_features)
+        all_train_feature_vecs.append(train_ftr_vectors)
+        all_train_ranges.append(train_ranges)
+
     # 3)   Create frequency histogram (BOW) for each of the images in the DB.
 
-    air_last_idx = air_train_ranges[len(air_train_ranges)-1][1]
-    moto_last_idx = moto_train_ranges[len(moto_train_ranges)-1][1]
-    for i in range(len(moto_train_ranges)):
-        moto_train_ranges[i][0] += air_last_idx
-        moto_train_ranges[i][1] += air_last_idx
-    for i in range(len(elef_train_ranges)):
-        elef_train_ranges[i][0] += moto_last_idx
-        elef_train_ranges[i][1] += moto_last_idx
+    for i in range(len(all_train_ranges)-1):
+        last_idx = (all_train_ranges[i])[len(all_train_ranges[i]) - 1][1]
+        for j in range(len(all_train_ranges[i+1])):
+            (all_train_ranges[i+1])[j][0] += last_idx
+            (all_train_ranges[i+1])[j][1] += last_idx
 
-    train_ftr_vectors = np.concatenate((air_train_ftr_vectors, moto_train_ftr_vectors), axis=1)
-    train_ftr_vectors = np.concatenate((train_ftr_vectors, elef_train_ftr_vectors), axis=1)
+    # Assume 2 classes at least
+    joined_ftr_vectors = np.concatenate((all_train_feature_vecs[0], all_train_feature_vecs[1]), axis=1)
+    for fv in all_train_feature_vecs[2:]:
+        joined_ftr_vectors = np.concatenate((joined_ftr_vectors, fv), axis=1)
 
-    train_ranges = air_train_ranges + moto_train_ranges + elef_train_ranges
+    joined_train_ranges = []
+    for tr in all_train_ranges:
+        joined_train_ranges = joined_train_ranges + tr
 
-    train_histograms, means = BowDB.get_train_freq_hist(train_ftr_vectors, train_ranges, treshold)
+    train_histograms, means = BowDB.get_train_freq_hist(joined_ftr_vectors, joined_train_ranges, treshold)
 
     # 4)   Given the histograms (BOWs) of the DB image
 
     train_set = np.float32(train_histograms).reshape(-1, BowDB.n_bins)
 
-    air_responses = air_db.label * np.ones([len(air_db.get_train_set()), 1], dtype=np.int32)
-    moto_responses = moto_db.label * np.ones([len(moto_db.get_train_set()), 1], dtype=np.int32)
-    elef_responses = elef_db.label * np.ones([len(elef_db.get_train_set()), 1], dtype=np.int32)
+    responsesA = dbs[0].label * np.ones([len(dbs[0].get_train_set()), 1], dtype=np.int32)
+    responsesB = dbs[1].label * np.ones([len(dbs[1].get_train_set()), 1], dtype=np.int32)
+    joined_responces = np.concatenate((responsesA, responsesB), axis=0)
+    for db in dbs[2:]:
+        resp = db.label * np.ones([len(db.get_train_set()), 1], dtype=np.int32)
+        joined_responces = np.concatenate((joined_responces, resp), axis=0)
 
-    responses = np.concatenate((air_responses, moto_responses), axis=0)
-    responses = np.concatenate((responses, elef_responses), axis=0)
+    BowDB.train_svm(train_set, joined_responces)
 
-    sc = StandardScaler()
-    train_set_std = sc.fit_transform(train_set)
+    result = BowDB.predict_svm(train_set)
 
-    svm = cv2.ml_SVM.create()
-    svm.setKernel(cv2.ml.SVM_RBF)
-    svm.setType(cv2.ml.SVM_C_SVC)
-    svm.setC(50.0)
-    svm.setGamma(0.0006)
+    plt.scatter(np.array(range(len(result))), result)
+    plt.show()
 
-    svm.train(samples=train_set_std, layout=cv2.ml.ROW_SAMPLE, responses=responses)
-    svm.save('svm_data.dat')
-
-    result = svm.predict(train_set_std)[1]
-    # plt.scatter(np.array(range(len(result))), result)
-    # plt.show()
-    #
-    # conf_matrix = BowDB.confusion_matrix(3, result, responses)
-    # plt.imshow(conf_matrix)
-    # plt.colorbar()
-    # plt.show()
+    conf_matrix = BowDB.confusion_matrix(len(class_list), result, joined_responces)
+    plt.imshow(conf_matrix)
+    plt.colorbar()
+    plt.show()
 
  # Saving the objects:
     with open('means.pkl', 'wb') as f:  # Python 3: open(..., 'wb')
         pickle.dump(means, f)
 
-def test(treshold = DEFAULT_TRESHOLD, testImageDirName='', desc_n_features=DEFAULT_DESC_DIM, dict_size=DEFAULT_DICT_SIZE):
+def test(class_list=[], treshold = DEFAULT_TRESHOLD, testImageDirName='', desc_n_features=DEFAULT_DESC_DIM, dict_size=DEFAULT_DICT_SIZE):
 
-    svm = cv2.ml_SVM.create()
-    svm = svm.load('svm_data.dat')
     BowDB.set_n_bins(dict_size)
 
     means = np.float32([BowDB.n_bins])
@@ -294,64 +346,87 @@ def test(treshold = DEFAULT_TRESHOLD, testImageDirName='', desc_n_features=DEFAU
             means = pickle.load(f)
 
     if(testImageDirName is ''):
-        air_db = AirplaneDB()
-        moto_db = MotorbikeDB()
-        elef_db = ElephantDB()
 
-        print("Test set len of AirplaneDB is " + str(len(air_db.get_test_set())))
-        print("Test set len of MotorbikeDB is " + str(len(moto_db.get_test_set())))
-        print("Test set len of ElephantDB is " + str(len(elef_db.get_test_set())))
+        is_air = 'Airplane' in class_list
+        is_moto = 'Motobike' in class_list
+        is_elef = 'Elephant' in class_list
+        is_chair = 'Chair' in class_list
+        is_ferry = 'Ferry' in class_list
+        is_wchair = 'Wheelchair' in class_list
 
-        air_test_ftr_vectors, air_test_ranges = air_db.get_test_ftr_vecs(n_features=desc_n_features)
-        moto_test_ftr_vectors, moto_test_ranges = moto_db.get_test_ftr_vecs(n_features=desc_n_features)
-        elef_test_ftr_vectors, elef_test_ranges = elef_db.get_test_ftr_vecs(n_features=desc_n_features)
+        dbs = []
+        if is_air:
+            dbs.append(AirplaneDB())
+        if is_moto:
+            dbs.append(MotorbikeDB())
+        if is_elef:
+            dbs.append(ElephantDB())
+        if is_chair:
+            dbs.append(ChairDB())
+        if is_ferry:
+            dbs.append(FerryDB())
+        if is_wchair:
+            dbs.append(WheelchairDB())
 
-        test_ftr_vectors = np.concatenate((air_test_ftr_vectors, moto_test_ftr_vectors), axis=1)
-        test_ftr_vectors = np.concatenate((test_ftr_vectors, elef_test_ftr_vectors), axis=1)
+        # 2)   Build visual word dictionary –
 
-        air_last_idx = air_test_ranges[len(air_test_ranges) - 1][1]
-        moto_last_idx = air_last_idx + moto_test_ranges[len(moto_test_ranges) - 1][1]
-        for i in range(len(moto_test_ranges)):
-            moto_test_ranges[i][0] += air_last_idx
-            moto_test_ranges[i][1] += air_last_idx
-        for i in range(len(elef_test_ranges)):
-            elef_test_ranges[i][0] += moto_last_idx
-            elef_test_ranges[i][1] += moto_last_idx
+        all_test_feature_vecs = []
+        all_test_ranges = []
+        for db in dbs:
+            print("test set len of " + db.name + " is " + str(len(db.get_test_set())))
+            test_ftr_vectors, test_ranges = db.get_test_ftr_vecs(n_features=desc_n_features)
+            all_test_feature_vecs.append(test_ftr_vectors)
+            all_test_ranges.append(test_ranges)
 
-        test_ranges = air_test_ranges + moto_test_ranges + elef_test_ranges
+        # 3)   Create frequency histogram (BOW) for each of the images in the DB.
 
-        test_histograms = BowDB.get_test_freq_hist(test_ftr_vectors, test_ranges, means)
+        for i in range(len(all_test_ranges) - 1):
+            last_idx = (all_test_ranges[i])[len(all_test_ranges[i]) - 1][1]
+            for j in range(len(all_test_ranges[i + 1])):
+                (all_test_ranges[i + 1])[j][0] += last_idx
+                (all_test_ranges[i + 1])[j][1] += last_idx
+
+        # Assume 2 classes at least
+        joined_ftr_vectors = np.concatenate((all_test_feature_vecs[0], all_test_feature_vecs[1]), axis=1)
+        for fv in all_test_feature_vecs[2:]:
+            joined_ftr_vectors = np.concatenate((joined_ftr_vectors, fv), axis=1)
+
+        joined_test_ranges = []
+        for tr in all_test_ranges:
+            joined_test_ranges = joined_test_ranges + tr
+
+        test_histograms = BowDB.get_test_freq_hist(joined_ftr_vectors, joined_test_ranges, means)
 
         test_set = np.float32(test_histograms).reshape(-1, BowDB.n_bins)
 
-        air_exp_labels = air_db.label * np.ones([len(air_db.get_test_set()), 1], dtype=np.int32)
-        moto_exp_labels = moto_db.label * np.ones([len(moto_db.get_test_set()), 1], dtype=np.int32)
-        elef_exp_labels = elef_db.label * np.ones([len(elef_db.get_test_set()), 1], dtype=np.int32)
+        yA = dbs[0].label * np.ones([len(dbs[0].get_test_set()), 1], dtype=np.int32)
+        yB = dbs[1].label * np.ones([len(dbs[1].get_test_set()), 1], dtype=np.int32)
+        expected_labels = np.concatenate((yA, yB), axis=0)
+        for db in dbs[2:]:
+            resp = db.label * np.ones([len(db.get_test_set()), 1], dtype=np.int32)
+            expected_labels = np.concatenate((expected_labels, resp), axis=0)
 
-        exp_labels = np.concatenate((air_exp_labels, moto_exp_labels), axis=0)
-        exp_labels = np.concatenate((exp_labels, elef_exp_labels), axis=0)
+        result = BowDB.predict_svm(test_set)
+        plt.scatter(np.array(range(len(result))), result)
+        plt.show()
 
-        sc = StandardScaler()
+        conf_matrix = BowDB.confusion_matrix(len(class_list), result, expected_labels)
+        plt.imshow(conf_matrix)
+        plt.colorbar()
+        plt.show()
 
-        test_set_std = sc.fit_transform(test_set)
-
-        result = svm.predict(test_set_std)[1]
-        # plt.scatter(np.array(range(len(result))), result)
-        # plt.show()
-
-        # conf_matrix = BowDB.confusion_matrix(3, result, exp_labels)
-        # plt.imshow(conf_matrix)
-        # plt.colorbar()
-        # plt.show()
         accs = []
-        accs.append(BowDB.get_accuracy(0, result, exp_labels))
-        accs.append(BowDB.get_accuracy(1, result, exp_labels))
-        accs.append(BowDB.get_accuracy(2, result, exp_labels))
+        accs.append(BowDB.get_accuracy(0, result, expected_labels))
+        accs.append(BowDB.get_accuracy(1, result, expected_labels))
+        accs.append(BowDB.get_accuracy(2, result, expected_labels))
+        accs.append(BowDB.get_accuracy(3, result, expected_labels))
+        accs.append(BowDB.get_accuracy(4, result, expected_labels))
+        accs.append(BowDB.get_accuracy(5, result, expected_labels))
 
-        avg_acc = BowDB.get_avg_accuracy_3class(result, exp_labels)
+        avg_acc = BowDB.get_avg_accuracy_3class(result, expected_labels)
         print("Accuracy is: " + str(avg_acc))
 
-        return [result, exp_labels, accs, avg_acc]
+        return [result, expected_labels, accs, avg_acc]
     else:
         db = BowDB(testImageDirName)
         print("Test set len of BowDB is " + str(len(db.get_all_data())))
@@ -362,11 +437,7 @@ def test(treshold = DEFAULT_TRESHOLD, testImageDirName='', desc_n_features=DEFAU
 
         test_set = np.float32(test_histograms).reshape(-1, BowDB.n_bins)
 
-        sc = StandardScaler()
-        test_set_std = sc.fit_transform(test_set)
+        result = BowDB.predict_svm(test_set)
 
-        result = svm.predict(test_set_std)[1]
-            # plt.imshow(result)
-            # plt.show()
         return [result, db.get_all_data()]
 
