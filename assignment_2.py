@@ -49,9 +49,9 @@ elef_acc = []
 y=[]
 scores=[]
 
-min_desc_dim = 16
-max_desc_dim = 256
-step = 16
+min_desc_dim = 50
+max_desc_dim = 100
+step = 10
 
 best_var_desc_dim=0
 best_var_acc_desc_dim=0
@@ -85,17 +85,6 @@ for dd in range(min_desc_dim, max_desc_dim, step):
     moto_acc.append(BowDB.get_accuracy(1, act_labels, exp_labels))
     elef_acc.append(BowDB.get_accuracy(2, act_labels, exp_labels))
 
-    # from sklearn import metrics
-    #
-    # air_fpr, air_tpr, air_thresholds = metrics.precision_recall_curve(y_true=exp_labels, probas_pred=proba[:, 0], pos_label=0)
-    # moto_fpr, moto_tpr, moto_thresholds = metrics.precision_recall_curve(y_true=exp_labels, probas_pred=proba[:, 1], pos_label=1)
-    # elef_fpr, elef_tpr, elef_thresholds = metrics.precision_recall_curve(y_true=exp_labels, probas_pred=proba[:, 2], pos_label=2)
-
-    # plt.plot(air_fpr, air_tpr)
-    # plt.plot(moto_fpr, moto_tpr)
-    # plt.plot(elef_fpr, elef_tpr)
-    # plt.show()
-
     y.append(exp_labels)
     scores.append(act_labels)
     # print(air_acc)
@@ -117,9 +106,9 @@ plt.plot(np.array(range(len(elef_acc))), elef_acc)
 plt.show()
 
 #  iii) Print best variable value according to ROC curve.
-
+print()
 print("best_variable - Descriptor dimension: Value = " + str(best_var_desc_dim) + " Accuracy =" + str(best_var_acc_desc_dim))
-
+print()
 
 #     b) Show the change in performance over all the data, as a function of the size of the Dictionary.
 #        (Use the best threshold value found in a) ).
@@ -140,13 +129,13 @@ elef_acc = []
 
 min_dictionary_size = 4
 max_dictionary_size = 32
-step = 2
+step = 8
 
 best_var_dict_size = 0
 best_var_acc_dict_size = 0
 
 for ds in range(min_dictionary_size, max_dictionary_size, step):
-
+    print()
     print("Current dictionary size is: " + str(ds) + ":\n")
 
     train(dict_size=ds, desc_n_features=best_var_desc_dim)
@@ -231,6 +220,10 @@ print("Elefants scores: Accuracy: " + str(elef_acc) + " Precision = " + str(elef
 
 #        iii) Plot the confusion matrix (see slide 86).
 
+conf_matrix = BowDB.confusion_matrix(3, act_labels, exp_labels)
+plt.imshow(conf_matrix)
+plt.colorbar()
+plt.show()
 
 #
 #     d) Show example images that were falsely determined as object (False Positive / False Alarm) and

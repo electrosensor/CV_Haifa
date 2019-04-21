@@ -16,7 +16,7 @@ import dlib
 
 DEFAULT_TRESHOLD = 840
 DEFAULT_DESC_DIM = 72
-DEFAULT_DICT_SIZE = 32
+DEFAULT_DICT_SIZE = 4
 
 class BowDB:
 
@@ -35,11 +35,11 @@ class BowDB:
         BowDB.n_bins = k
 
     def get_train_set(self):
-        length = round(len(self.__images)*0.9)
+        length = round(len(self.__images)*0.85)
         return self.__images[:length]
 
     def get_test_set(self):
-        length = round(len(self.__images)*0.9)
+        length = round(len(self.__images)*0.85)
         return self.__images[length:]
 
     def get_all_data(self):
@@ -55,46 +55,23 @@ class BowDB:
         return desc, desc_size
 
     @staticmethod
-    def __make_hog_ftr_vector(image, n_feature):
-        winSize = (64, 64)
-        blockSize = (16, 16)
-        blockStride = (8, 8)
-        cellSize = (8, 8)
-        nbins = 9
-        derivAperture = 1
-        winSigma = 4.
-        histogramNormType = 0
-        L2HysThreshold = 2.0000000000000001e-01
-        gammaCorrection = 0
-        nlevels = 64
-        hog = cv2.HOGDescriptor(winSize, blockSize, blockStride, cellSize, nbins, derivAperture, winSigma, histogramNormType, L2HysThreshold, gammaCorrection, nlevels)
-        # compute(img[, winStride[, padding[, locations]]]) -> descriptors
-
-        winStride = (8, 8)
-        padding = (8, 8)
-        locations = ((10, 20),)
-        hist = hog.compute(image, winStride=winStride, padding=padding, locations=locations)
-        return hist, 1
-
-    @staticmethod
     def __get_feature_vectors(samples, n_features):
         feature_vectors = []
         n_keypoints = 0
         desc_size = 0
         ranges = []
         for img in samples:
-            ftr_vector, desc_size = BowDB.__make_hog_ftr_vector(img, n_features)
+            ftr_vector, desc_size = BowDB.__make_ftr_vector(img, n_features)
             ranges.append([n_keypoints, n_keypoints + ftr_vector.shape[0]])
             n_keypoints += ftr_vector.shape[0]
             feature_vectors.append(ftr_vector)
 
-        descriptors = np.zeros([len(feature_vectors), ftr_vector.shape[0]], dtype=np.float32)
+        descriptors = np.zeros([desc_size, n_keypoints], dtype=np.uint8)
         i = 0
-
         for vec in feature_vectors:
             tvec = np.transpose(vec)
-            descriptors[i, :] = tvec[:]
-            i += 1
+            descriptors[:, i:i+tvec.shape[1]] = tvec
+            i += tvec.shape[1]
         return descriptors, ranges
 
     def get_train_ftr_vecs(self, n_features=DEFAULT_DESC_DIM):
@@ -108,11 +85,18 @@ class BowDB:
 
     @staticmethod
     def get_clasters(feature_vectors, is_test = False, means = 0):
-        # feature_vectors = np.transpose(feature_vectors.astype(np.float32))
+        feature_vectors = np.transpose(feature_vectors.astype(np.float32))
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
         if is_test:
-            retval, labels, centers = cv2.kmeans(data=feature_vectors, K=BowDB.n_bins, bestLabels=None, centers=means, criteria=criteria, attempts=1, flags=cv2.KMEANS_RANDOM_CENTERS)
-
+            hist = np.zeros([BowDB.n_bins, 1], dtype=np.uint32)
+            for vec in feature_vectors:
+                distances = []
+                for i in range(len(means)):
+                    distances.append(np.linalg.norm(means[i]-vec))
+                claster = distances.index(min(distances))
+                hist[claster, :] += 1
+            labels = hist
+            centers = means
         else:
             retval, labels, centers = cv2.kmeans(data=feature_vectors, K=BowDB.n_bins, bestLabels=None, criteria=criteria, attempts=1, flags=cv2.KMEANS_RANDOM_CENTERS)
 
@@ -121,33 +105,17 @@ class BowDB:
     @staticmethod
     def get_freq_hists(ftr_vectors, ranges, treshold=0, is_test=False, clasters_means=0):
         if is_test:
-            clasters_means, labels = BowDB.get_clasters(ftr_vectors, is_test=True, means=clasters_means)
+            clasters_means, hist = BowDB.get_clasters(ftr_vectors, is_test=True, means=clasters_means)
+            return hist, clasters_means
         else:
             clasters_means, labels = BowDB.get_clasters(ftr_vectors)
-
-        samples_hist = np.zeros([len(ranges), BowDB.n_bins], dtype=np.int32)
-        distances = np.zeros(ftr_vectors.shape[1], dtype=np.int32)
-        max_dist = 0
-        for i in range(len(ranges)):
-            idx_from = ranges[i][0]
-            idx_to = ranges[i][1]
-            relevant_lbls = labels[idx_from:idx_to]
-            if treshold > 0:
-                curr_ftr_vectors = ftr_vectors[:, idx_from:idx_to]
-                curr_claster = clasters_means[relevant_lbls[:]]
-                dist = np.linalg.norm(np.transpose(np.transpose(curr_claster[:, 0]) - curr_ftr_vectors), axis=1)
-                distances[idx_from:idx_to] = dist
-                relevant_lbls = relevant_lbls[dist < treshold]
-                # dist = dist[dist < treshold]
-                # relevant_lbls = relevant_lbls[dist > 0]
-
-            samples_hist[i, :] = np.histogram(relevant_lbls, bins=BowDB.n_bins, range=(0, BowDB.n_bins))[0]
-        if treshold > 0:
-            distances = distances[distances < treshold]
-            # distances = distances[distances > 0]
-            max_dist = max(distances[:])
-            print("Max dist: " + str(max_dist))
-        return samples_hist, clasters_means, distances, max_dist
+            samples_hist = np.zeros([len(ranges), BowDB.n_bins], dtype=np.int32)
+            for i in range(len(ranges)):
+                idx_from = ranges[i][0]
+                idx_to = ranges[i][1]
+                relevant_lbls = labels[idx_from:idx_to]
+                samples_hist[i, :] = np.histogram(relevant_lbls, bins=BowDB.n_bins, range=(0, BowDB.n_bins))[0]
+            return samples_hist, clasters_means
 
     @staticmethod
     def get_test_freq_hist(ftr_vectors, range, treshold, clasters_means):
@@ -291,12 +259,12 @@ def train(treshold = DEFAULT_TRESHOLD, desc_n_features=DEFAULT_DESC_DIM, dict_si
         elef_train_ranges[i][0] += moto_last_idx
         elef_train_ranges[i][1] += moto_last_idx
 
-    train_ftr_vectors = np.concatenate((air_train_ftr_vectors, moto_train_ftr_vectors), axis=0)
-    train_ftr_vectors = np.concatenate((train_ftr_vectors, elef_train_ftr_vectors), axis=0)
+    train_ftr_vectors = np.concatenate((air_train_ftr_vectors, moto_train_ftr_vectors), axis=1)
+    train_ftr_vectors = np.concatenate((train_ftr_vectors, elef_train_ftr_vectors), axis=1)
 
     train_ranges = air_train_ranges + moto_train_ranges + elef_train_ranges
 
-    train_histograms, means, train_dists, air_train_max_dist = BowDB.get_train_freq_hist(train_ftr_vectors, train_ranges, treshold)
+    train_histograms, means = BowDB.get_train_freq_hist(train_ftr_vectors, train_ranges, treshold)
     # moto_train_histograms, moto_means, moto_train_dists, moto_train_max_dist = MotorbikeDB.get_train_freq_hist(moto_train_ftr_vectors, moto_train_ranges, treshold)
     # elef_train_histograms, elef_means, elef_train_dists, elef_train_max_dist = ElephantDB.get_train_freq_hist(elef_train_ftr_vectors, elef_train_ranges, treshold)
     #
@@ -357,10 +325,10 @@ def train(treshold = DEFAULT_TRESHOLD, desc_n_features=DEFAULT_DESC_DIM, dict_si
     #     pickle.dump(svm, f)
 
     svm = cv2.ml_SVM.create()
-    svm.setKernel(cv2.ml.SVM_LINEAR)
+    svm.setKernel(cv2.ml.SVM_RBF)
     svm.setType(cv2.ml.SVM_C_SVC)
-    # svm.setC(5.0)
-    # svm.setGamma(1.0)
+    svm.setC(50.0)
+    svm.setGamma(0.0006)
 
     svm.train(samples=train_set_std, layout=cv2.ml.ROW_SAMPLE, responses=responses)
     svm.save('svm_data.dat')
@@ -372,13 +340,13 @@ def train(treshold = DEFAULT_TRESHOLD, desc_n_features=DEFAULT_DESC_DIM, dict_si
     #         svm2 = pickle.load(f)
 
     result = svm.predict(train_set_std)[1]
-    # plt.scatter(np.array(range(len(result))), result)
-    # plt.show()
-    #
-    # conf_matrix = BowDB.confusion_matrix(3, result, responses)
-    # plt.imshow(conf_matrix)
-    # plt.colorbar()
-    # plt.show()
+    plt.scatter(np.array(range(len(result))), result)
+    plt.show()
+
+    conf_matrix = BowDB.confusion_matrix(3, result, responses)
+    plt.imshow(conf_matrix)
+    plt.colorbar()
+    plt.show()
 
  # Saving the objects:
     with open('means.pkl', 'wb') as f:  # Python 3: open(..., 'wb')
