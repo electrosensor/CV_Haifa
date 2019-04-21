@@ -84,31 +84,44 @@ class BowDB:
         return BowDB.__get_feature_vectors(self.__images, n_features)
 
     @staticmethod
-    def get_clasters(feature_vectors, is_test = False, means = 0):
+    def get_test_clasters(feature_vectors, means=0):
+        feature_vectors = np.transpose(feature_vectors.astype(np.float32))
+        hist = np.zeros([1, BowDB.n_bins], dtype=np.uint32)
+        for vec in feature_vectors:
+            distances = []
+            for i in range(len(means)):
+                distances.append(np.linalg.norm(means[i]-vec))
+            claster = distances.index(min(distances))
+            hist[:, claster] += 1
+        labels = hist
+        return labels
+
+    @staticmethod
+    def get_train_clasters(feature_vectors):
         feature_vectors = np.transpose(feature_vectors.astype(np.float32))
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-        if is_test:
-            hist = np.zeros([BowDB.n_bins, 1], dtype=np.uint32)
-            for vec in feature_vectors:
-                distances = []
-                for i in range(len(means)):
-                    distances.append(np.linalg.norm(means[i]-vec))
-                claster = distances.index(min(distances))
-                hist[claster, :] += 1
-            labels = hist
-            centers = means
-        else:
-            retval, labels, centers = cv2.kmeans(data=feature_vectors, K=BowDB.n_bins, bestLabels=None, criteria=criteria, attempts=1, flags=cv2.KMEANS_RANDOM_CENTERS)
-
+        retval, labels, centers = cv2.kmeans(data=feature_vectors, K=BowDB.n_bins, bestLabels=None, criteria=criteria, attempts=1, flags=cv2.KMEANS_RANDOM_CENTERS)
         return centers, labels
 
     @staticmethod
-    def get_freq_hists(ftr_vectors, ranges, treshold=0, is_test=False, clasters_means=0):
-        if is_test:
-            clasters_means, hist = BowDB.get_clasters(ftr_vectors, is_test=True, means=clasters_means)
-            return hist, clasters_means
-        else:
-            clasters_means, labels = BowDB.get_clasters(ftr_vectors)
+    def get_one_test_freq_hist(ftr_vector, clasters_means=0):
+        hist = BowDB.get_test_clasters(ftr_vector, means=clasters_means)
+        return hist
+
+    @staticmethod
+    def get_test_freq_hist(ftr_vectors, ranges, clasters_means=0):
+        samples_hist = np.zeros([len(ranges), BowDB.n_bins], dtype=np.int32)
+        for i in range(len(ranges)):
+            idx_from = ranges[i][0]
+            idx_to = ranges[i][1]
+            hist = BowDB.get_test_clasters(ftr_vectors[:, idx_from:idx_to], means=clasters_means)
+            samples_hist[i, :] = hist
+
+        return samples_hist
+
+    @staticmethod
+    def get_train_freq_hist(ftr_vectors, ranges, treshold=0):
+            clasters_means, labels = BowDB.get_train_clasters(ftr_vectors)
             samples_hist = np.zeros([len(ranges), BowDB.n_bins], dtype=np.int32)
             for i in range(len(ranges)):
                 idx_from = ranges[i][0]
@@ -116,14 +129,6 @@ class BowDB:
                 relevant_lbls = labels[idx_from:idx_to]
                 samples_hist[i, :] = np.histogram(relevant_lbls, bins=BowDB.n_bins, range=(0, BowDB.n_bins))[0]
             return samples_hist, clasters_means
-
-    @staticmethod
-    def get_test_freq_hist(ftr_vectors, range, treshold, clasters_means):
-        return BowDB.get_freq_hists(ftr_vectors, range, treshold=treshold, is_test=True, clasters_means=clasters_means)
-
-    @staticmethod
-    def get_train_freq_hist(ftr_vectors, ranges, treshold=0):
-        return BowDB.get_freq_hists(ftr_vectors, ranges=ranges, treshold=treshold)
 
     @staticmethod
     def __false_pos(checked_class, act_labels, exp_labels):
@@ -215,41 +220,15 @@ def train(treshold = DEFAULT_TRESHOLD, desc_n_features=DEFAULT_DESC_DIM, dict_si
     print("Train set len of ElephantDB is " + str(len(elef_db.get_train_set())))
 
     # 2)   Build visual word dictionary –
-    # Use a feature descriptor of your choice (SIFT, HOG, SURF etc) to extract feature vectors from all your DB Images.
-    # Cluster the features into K clusters (use K-means, mean-shift or any clustering
-    # method of your choice.K is a parameter ( or window size in mean shift etc).
-    # This results in K visual words (usually numbered 1..K).
-    # Decide how you will represent each word so that later ( in Step 3 and 5)
-    # new features found in image will be tested against the visual words.
-    # Another possible system parameter will be the complexity (dimension) of the feature descriptor.
 
     air_train_ftr_vectors, air_train_ranges = air_db.get_train_ftr_vecs(n_features=desc_n_features)
     moto_train_ftr_vectors, moto_train_ranges = moto_db.get_train_ftr_vecs(n_features=desc_n_features)
     elef_train_ftr_vectors, elef_train_ranges = elef_db.get_train_ftr_vecs(n_features=desc_n_features)
 
     BowDB.set_n_bins(dict_size)
-    # # Saving the objects:
-    # with open('weights.pkl', 'wb') as f:  # Python 3: open(..., 'wb')
-    #     pickle.dump(ql.weights, f)
-    # # Loading the objects:
-    # if os.path.exists('weights.pkl'):
-    #     with open('weights.pkl', 'rb') as f:  # Python 3: open(..., 'rb')
-    #         ql.weights = pickle.load(f)
 
-    # The routine created here might be run several times –
-    # using different parameters and different sets of images and their features.
-    #
-    # Make sure you output to a file the final dictionary you will submit to checker.And can be used
-    # later for testing.
-    #
     # 3)   Create frequency histogram (BOW) for each of the images in the DB.
-    #      This will require writing a routine that determines for a given feature vector,
-    #      which visual word it represents if at all.
-    #      The clusters of visual words and / or their representations will be used here.
-    #      Another system parameter determines when a feature is NOT any visual word
-    #      (usually a threshold above which the feature is too far from all clusters).
-    #
-    # Make sure the routine can read a dictionary that was saved to a file ( in step 2).
+
     air_last_idx = air_train_ranges[len(air_train_ranges)-1][1]
     moto_last_idx = moto_train_ranges[len(moto_train_ranges)-1][1]
     for i in range(len(moto_train_ranges)):
@@ -265,34 +244,10 @@ def train(treshold = DEFAULT_TRESHOLD, desc_n_features=DEFAULT_DESC_DIM, dict_si
     train_ranges = air_train_ranges + moto_train_ranges + elef_train_ranges
 
     train_histograms, means = BowDB.get_train_freq_hist(train_ftr_vectors, train_ranges, treshold)
-    # moto_train_histograms, moto_means, moto_train_dists, moto_train_max_dist = MotorbikeDB.get_train_freq_hist(moto_train_ftr_vectors, moto_train_ranges, treshold)
-    # elef_train_histograms, elef_means, elef_train_dists, elef_train_max_dist = ElephantDB.get_train_freq_hist(elef_train_ftr_vectors, elef_train_ranges, treshold)
-    #
 
-    # air_train_X = 0.1 * air_db.label * np.ones((len(air_train_dists)))
-    # moto_train_X = 0.1 * moto_db.label * np.ones((len(moto_train_dists)))
-    # elef_train_X = 0.1 * elef_db.label * np.ones((len(elef_train_dists)))
+    # 4)   Given the histograms (BOWs) of the DB image
 
-    # plt.scatter(y=air_train_X , x=air_train_dists)
-    # plt.scatter(y=moto_train_X , x=moto_train_dists)
-    # plt.scatter(y=elef_train_X , x=elef_train_dists)
-    # plt.legend()
-    # plt.show()
-
-    # 4)   Given the histograms (BOWs) of the DB image –
-    #      build a classifier to distinguish between object and non-object.
-    #      Build Classifier of your choice (SVM (linear or kernel), Fisher, Cascade etc).
-    #
-    # Make sure to save the classifier and / or its parameters to external file to be used later.
-
-    # # in SVM::train @param trainData - training data that can be loaded from file using TrainData::loadFromCSV or .created with TrainData::create.
-    # air_train_histogramssvm = cv2.ml_SVM()
     train_set = np.float32(train_histograms).reshape(-1, BowDB.n_bins)
-    # moto_train_data = np.float32(moto_train_histograms).reshape(-1, BowDB.n_bins)
-    # elef_train_data = np.float32(elef_train_histograms).reshape(-1, BowDB.n_bins)
-    #
-    # train_set = np.concatenate((air_train_data, moto_train_data), axis=0)
-    # train_set = np.concatenate((train_set, elef_train_data), axis=0)
 
     air_responses = air_db.label * np.ones([len(air_db.get_train_set()), 1], dtype=np.int32)
     moto_responses = moto_db.label * np.ones([len(moto_db.get_train_set()), 1], dtype=np.int32)
@@ -301,28 +256,8 @@ def train(treshold = DEFAULT_TRESHOLD, desc_n_features=DEFAULT_DESC_DIM, dict_si
     responses = np.concatenate((air_responses, moto_responses), axis=0)
     responses = np.concatenate((responses, elef_responses), axis=0)
 
-
     sc = StandardScaler()
     train_set_std = sc.fit_transform(train_set)
-
-    # ts = dlib.vectors()
-    # tl = dlib.array()
-    # for i in range(train_set_std.shape[0]):
-    #     ts.append(dlib.vector(train_set_std[i, :]))
-    #     tl.append(responses[i])
-    #     i += 1
-    #
-    # svm = dlib.svm_c_trainer_linear()
-    # svm.be_verbose()
-    # svm.train(ts, tl)
-
-
-    # svm = SVC(C = 5.0, kernel ='rbf', degree = 3, gamma = 0.005, coef0 = 0.0, shrinking = True, probability = True, tol = 0.001, cache_size = 200, class_weight = None, verbose = False, max_iter = -1, decision_function_shape ='ovr', random_state = None)
-    # svm.fit(X=train_set_std, y=responses)
-
-    # # Saving the objects:
-    # with open('svm.pkl', 'wb') as f:  # Python 3: open(..., 'wb')
-    #     pickle.dump(svm, f)
 
     svm = cv2.ml_SVM.create()
     svm.setKernel(cv2.ml.SVM_RBF)
@@ -333,20 +268,14 @@ def train(treshold = DEFAULT_TRESHOLD, desc_n_features=DEFAULT_DESC_DIM, dict_si
     svm.train(samples=train_set_std, layout=cv2.ml.ROW_SAMPLE, responses=responses)
     svm.save('svm_data.dat')
 
-    # svm2 = SVC()
-    # # Loading the objects:
-    # if os.path.exists('svm.pkl'):
-    #     with open('svm.pkl', 'rb') as f:  # Python 3: open(..., 'rb')
-    #         svm2 = pickle.load(f)
-
     result = svm.predict(train_set_std)[1]
-    plt.scatter(np.array(range(len(result))), result)
-    plt.show()
-
-    conf_matrix = BowDB.confusion_matrix(3, result, responses)
-    plt.imshow(conf_matrix)
-    plt.colorbar()
-    plt.show()
+    # plt.scatter(np.array(range(len(result))), result)
+    # plt.show()
+    #
+    # conf_matrix = BowDB.confusion_matrix(3, result, responses)
+    # plt.imshow(conf_matrix)
+    # plt.colorbar()
+    # plt.show()
 
  # Saving the objects:
     with open('means.pkl', 'wb') as f:  # Python 3: open(..., 'wb')
@@ -358,16 +287,10 @@ def test(treshold = DEFAULT_TRESHOLD, testImageDirName='', desc_n_features=DEFAU
     svm = svm.load('svm_data.dat')
     BowDB.set_n_bins(dict_size)
 
-    # svm = SVC()
-    # # Loading the objects:
-    # if os.path.exists('svm.pkl'):
-    #     with open('svm.pkl', 'rb') as f:  # Python 3: open(..., 'rb')
-    #         svm = pickle.load(f)
-
     means = np.float32([BowDB.n_bins])
     # Loading the objects:
     if os.path.exists('means.pkl'):
-        with open('means.pkl', 'rb') as f:  # Python 3: open(..., 'rb')
+        with open('means.pkl', 'rb') as f:
             means = pickle.load(f)
 
     if(testImageDirName is ''):
@@ -382,7 +305,6 @@ def test(treshold = DEFAULT_TRESHOLD, testImageDirName='', desc_n_features=DEFAU
         air_test_ftr_vectors, air_test_ranges = air_db.get_test_ftr_vecs(n_features=desc_n_features)
         moto_test_ftr_vectors, moto_test_ranges = moto_db.get_test_ftr_vecs(n_features=desc_n_features)
         elef_test_ftr_vectors, elef_test_ranges = elef_db.get_test_ftr_vecs(n_features=desc_n_features)
-        # print(str(air_test_ftr_vectors))
 
         test_ftr_vectors = np.concatenate((air_test_ftr_vectors, moto_test_ftr_vectors), axis=1)
         test_ftr_vectors = np.concatenate((test_ftr_vectors, elef_test_ftr_vectors), axis=1)
@@ -398,30 +320,9 @@ def test(treshold = DEFAULT_TRESHOLD, testImageDirName='', desc_n_features=DEFAU
 
         test_ranges = air_test_ranges + moto_test_ranges + elef_test_ranges
 
-        # print(test_ftr_vectors[:, 0])
-        # print(test_ftr_vectors[:, (test_ftr_vectors.shape[1]-1)])
-        # print(str(test_ranges))
-        # print(len(test_ranges))
+        test_histograms = BowDB.get_test_freq_hist(test_ftr_vectors, test_ranges, means)
 
-        test_histograms = BowDB.get_test_freq_hist(test_ftr_vectors, test_ranges, treshold, means)[0]
-        # print(str(test_histograms[0]))
-        # print(str(test_histograms[len(test_histograms)-1]))
-        # air_test_X = 0.1 * air_db.label * np.ones((len(air_test_dists)))
-        # moto_test_X = 0.1 * moto_db.label * np.ones((len(moto_test_dists)))
-        # elef_test_X = 0.1 * elef_db.label * np.ones((len(elef_test_dists)))
-
-        # plt.scatter(y=air_test_X , x=air_test_dists)
-        # plt.scatter(y=moto_test_X , x=moto_test_dists)
-        # plt.scatter(y=elef_test_X , x=elef_test_dists)
-        # plt.legend()
-        # plt.show()
         test_set = np.float32(test_histograms).reshape(-1, BowDB.n_bins)
-        # air_test_data = np.float32(air_test_histograms).reshape(-1, BowDB.n_bins)
-        # moto_test_data = np.float32(moto_test_histograms).reshape(-1, BowDB.n_bins)
-        # elef_test_data = np.float32(elef_test_histograms).reshape(-1, BowDB.n_bins)
-
-        # test_set = np.concatenate((air_test_data, moto_test_data), axis=0)
-        # test_set = np.concatenate((test_set, elef_test_data), axis=0)
 
         air_exp_labels = air_db.label * np.ones([len(air_db.get_test_set()), 1], dtype=np.int32)
         moto_exp_labels = moto_db.label * np.ones([len(moto_db.get_test_set()), 1], dtype=np.int32)
@@ -433,13 +334,10 @@ def test(treshold = DEFAULT_TRESHOLD, testImageDirName='', desc_n_features=DEFAU
         sc = StandardScaler()
 
         test_set_std = sc.fit_transform(test_set)
-        # result = test_svm.predict(test_set_std)[1]
 
         result = svm.predict(test_set_std)[1]
         # plt.scatter(np.array(range(len(result))), result)
         # plt.show()
-
-        # score = svm.score(test_set_std, exp_labels)
 
         # conf_matrix = BowDB.confusion_matrix(3, result, exp_labels)
         # plt.imshow(conf_matrix)
@@ -459,17 +357,9 @@ def test(treshold = DEFAULT_TRESHOLD, testImageDirName='', desc_n_features=DEFAU
         print("Test set len of BowDB is " + str(len(db.get_all_data())))
 
         test_ftr_vectors, test_ranges = db.get_all_ftr_vecs(n_features=desc_n_features)
-        # print(str(test_ftr_vectors[:, 0]))
-        # print(test_ftr_vectors[:, (test_ftr_vectors.shape[1]-1)])
-        # print(str(test_ranges))
-        # print(len(test_ranges))
 
-        # test_histograms = np.zeros([len(test_ranges), db.n_bins], dtype=np.float32)
+        test_histograms = BowDB.get_test_freq_hist(test_ftr_vectors, test_ranges, means)
 
-        test_histograms = BowDB.get_test_freq_hist(test_ftr_vectors, test_ranges, treshold, means)[0]
-
-        # print(str(test_histograms[0]))
-        # print(str(test_histograms[len(test_histograms) - 1]))
         test_set = np.float32(test_histograms).reshape(-1, BowDB.n_bins)
 
         sc = StandardScaler()
