@@ -40,153 +40,140 @@ from matplotlib import pyplot as plt
 #        iii) Print best variable value according to ROC curve.
 
 categories = ['Airplane', 'Motobike', 'Elephant']
+#
+# air_precision=[]
+# air_recall=[]
+# moto_precision=[]
+# moto_recall=[]
+# elef_precision=[]
+# elef_recall=[]
+#
+# acc = []
+#
+# y=[]
+# scores=[]
+#
+# min_desc_dim = 116
+# max_desc_dim = 120
+# step = 1
+#
+# best_var_desc_dim=0
+# best_var_acc_desc_dim=0
+#
+# for dd in range(min_desc_dim, max_desc_dim, step):
+#
+#     print("Current descriptor dimention is: " + str(dd) + ":\n")
+#
+#     train(class_list=categories, desc_n_features=dd)
+#     result = test(class_list=categories, desc_n_features=dd)
+#     act_labels = result[0]
+#     exp_labels = result[1]
+#     score = result[3]
+#
+#     if score > best_var_acc_desc_dim:
+#         best_var_desc_dim = dd
+#         best_var_acc_desc_dim = score
+#
+#     air_roc = BowDB.roc_curve(0, act_labels, exp_labels)
+#     air_precision.append(air_roc[0])
+#     air_recall.append(air_roc[1])
+#     moto_roc = BowDB.roc_curve(1, act_labels, exp_labels)
+#     moto_precision.append(moto_roc[0])
+#     moto_recall.append(moto_roc[1])
+#     elef_roc = BowDB.roc_curve(2, act_labels, exp_labels)
+#     elef_precision.append(elef_roc[0])
+#     elef_recall.append(elef_roc[1])
+#
+#     acc.append(score)
+#
+#     y.append(exp_labels)
+#     scores.append(act_labels)
+#
+#
+# #i) Plot ROC curve
+#
+# plt.plot(air_precision, air_recall)
+# plt.plot(moto_precision, moto_recall)
+# plt.plot(elef_precision, elef_recall)
+# plt.show()
+#
+# # ii) Plot Accuracy as a function of the dependent variable.
+#
+# plt.plot(np.array(range(len(acc))), acc)
+# plt.show()
+#
+# #  iii) Print best variable value according to ROC curve.
+# print()
+# print("best_variable - Descriptor dimension: Value = " + str(best_var_desc_dim) + " Accuracy =" + str(best_var_acc_desc_dim))
+# print()
+#
+# #     b) Show the change in performance over all the data, as a function of the size of the Dictionary.
+# #        (Use the best threshold value found in a) ).
+# #        i) Plot ROC curve
+# #        ii) Plot Accuracy as a function of Dictionary size.
+# #        Accuracy is defined as: (TP + TN) /  # AllData
+#
+#
+# air_precision=[]
+# air_recall=[]
+# moto_precision=[]
+# moto_recall=[]
+# elef_precision=[]
+# elef_recall=[]
+# acc = []
+#
+# min_dictionary_size = 52
+# max_dictionary_size = 64
+# step = 1
+#
+# best_var_dict_size = 0
+# best_var_acc_dict_size = 0
+#
+# for ds in range(min_dictionary_size, max_dictionary_size, step):
+#     print()
+#     print("Current dictionary size is: " + str(ds) + ":\n")
+#
+#     train(class_list=categories, dict_size=ds, desc_n_features=best_var_desc_dim)
+#     result = test(class_list=categories, dict_size=ds, desc_n_features=best_var_desc_dim)
+#     act_labels = result[0]
+#     exp_labels = result[1]
+#     score = result[3]
+#
+#     if score > best_var_acc_dict_size :
+#         best_var_dict_size = ds
+#         best_var_acc_dict_size = score
+#
+#     air_roc = BowDB.roc_curve(0, act_labels, exp_labels)
+#     air_precision.append(air_roc[0])
+#     air_recall.append(air_roc[1])
+#     moto_roc = BowDB.roc_curve(1, act_labels, exp_labels)
+#     moto_precision.append(moto_roc[0])
+#     moto_recall.append(moto_roc[1])
+#     elef_roc = BowDB.roc_curve(2, act_labels, exp_labels)
+#     elef_precision.append(elef_roc[0])
+#     elef_recall.append(elef_roc[1])
+#
+#     acc.append(score)
+#
+# #i) Plot ROC curve
+#
+# plt.plot(air_precision, air_recall)
+# plt.plot(moto_precision, moto_recall)
+# plt.plot(elef_precision, elef_recall)
+# plt.show()
+#
+# # ii) Plot Accuracy as a function of the dependent variable.
+#
+# plt.plot(np.array(range(len(acc))), acc)
+# plt.show()
+# print()
+# # print("best_variable - Descriptor dimension: Value = " + str(best_var_desc_dim) + " Accuracy =" + str(best_var_acc_desc_dim))
+# print("best_variable - Dictionary Size: Value = " + str(best_var_dict_size) + " Accuracy =" + str(best_var_acc_dict_size))
 
-air_precision=[]
-air_recall=[]
-moto_precision=[]
-moto_recall=[]
-elef_precision=[]
-elef_recall=[]
-
-air_acc = []
-moto_acc = []
-elef_acc = []
-
-y=[]
-scores=[]
-
-min_desc_dim = 64
-max_desc_dim = 256
-step = 2
-
-best_var_desc_dim=0
-best_var_acc_desc_dim=0
-
-for dd in range(min_desc_dim, max_desc_dim, step):
-
-    print("Current descriptor dimention is: " + str(dd) + ":\n")
-
-    train(class_list=categories, desc_n_features=dd)
-    result = test(class_list=categories, desc_n_features=dd)
-    act_labels = result[0]
-    exp_labels = result[1]
-    score = result[3]
-
-    BowDB.get_accuracy(0, act_labels, exp_labels)
-
-    if score > best_var_acc_desc_dim:
-        best_var_desc_dim = dd
-        best_var_acc_desc_dim = score
-    air_roc = BowDB.roc_curve(0, act_labels, exp_labels)
-    air_precision.append(air_roc[0])
-    air_recall.append(air_roc[1])
-    moto_roc = BowDB.roc_curve(1, act_labels, exp_labels)
-    moto_precision.append(moto_roc[0])
-    moto_recall.append(moto_roc[1])
-    elef_roc = BowDB.roc_curve(2, act_labels, exp_labels)
-    elef_precision.append(elef_roc[0])
-    elef_recall.append(elef_roc[1])
-
-    air_acc.append(BowDB.get_accuracy(0, act_labels, exp_labels))
-    moto_acc.append(BowDB.get_accuracy(1, act_labels, exp_labels))
-    elef_acc.append(BowDB.get_accuracy(2, act_labels, exp_labels))
-
-    y.append(exp_labels)
-    scores.append(act_labels)
-    # print(air_acc)
-    # print(moto_acc)
-    # print(elef_acc)
-
-#i) Plot ROC curve
-
-plt.plot(air_precision, air_recall)
-plt.plot(moto_precision, moto_recall)
-plt.plot(elef_precision, elef_recall)
-plt.show()
-
-# ii) Plot Accuracy as a function of the dependent variable.
-
-plt.plot(np.array(range(len(air_acc))), air_acc)
-plt.plot(np.array(range(len(moto_acc))), moto_acc)
-plt.plot(np.array(range(len(elef_acc))), elef_acc)
-plt.show()
-
-#  iii) Print best variable value according to ROC curve.
-print()
-print("best_variable - Descriptor dimension: Value = " + str(best_var_desc_dim) + " Accuracy =" + str(best_var_acc_desc_dim))
-print()
-
-#     b) Show the change in performance over all the data, as a function of the size of the Dictionary.
-#        (Use the best threshold value found in a) ).
-#        i) Plot ROC curve
-#        ii) Plot Accuracy as a function of Dictionary size.
-#        Accuracy is defined as: (TP + TN) /  # AllData
-
-
-air_precision=[]
-air_recall=[]
-moto_precision=[]
-moto_recall=[]
-elef_precision=[]
-elef_recall=[]
-air_acc = []
-moto_acc = []
-elef_acc = []
-
-min_dictionary_size = 4
-max_dictionary_size = 128
-step = 1
-
-best_var_dict_size = 0
-best_var_acc_dict_size = 0
-
-for ds in range(min_dictionary_size, max_dictionary_size, step):
-    print()
-    print("Current dictionary size is: " + str(ds) + ":\n")
-
-    train(class_list=categories, dict_size=ds, desc_n_features=best_var_desc_dim)
-    result = test(class_list=categories, dict_size=ds)
-    act_labels = result[0]
-    exp_labels = result[1]
-    score = result[3]
-
-    if score > best_var_acc_dict_size :
-        best_var_dict_size = ds
-        best_var_acc_dict_size = score
-
-    air_roc = BowDB.roc_curve(0, act_labels, exp_labels)
-    air_precision.append(air_roc[0])
-    air_recall.append(air_roc[1])
-    moto_roc = BowDB.roc_curve(1, act_labels, exp_labels)
-    moto_precision.append(moto_roc[0])
-    moto_recall.append(moto_roc[1])
-    elef_roc = BowDB.roc_curve(2, act_labels, exp_labels)
-    elef_precision.append(elef_roc[0])
-    elef_recall.append(elef_roc[1])
-
-    air_acc.append(BowDB.get_accuracy(0, act_labels, exp_labels))
-    moto_acc.append(BowDB.get_accuracy(1, act_labels, exp_labels))
-    elef_acc.append(BowDB.get_accuracy(2, act_labels, exp_labels))
-#i) Plot ROC curve
-
-plt.plot(air_precision, air_recall)
-plt.plot(moto_precision, moto_recall)
-plt.plot(elef_precision, elef_recall)
-plt.show()
-
-# ii) Plot Accuracy as a function of the dependent variable.
-
-plt.plot(np.array(range(len(air_acc))), air_acc)
-plt.plot(np.array(range(len(moto_acc))), moto_acc)
-plt.plot(np.array(range(len(elef_acc))), elef_acc)
-plt.show()
-
-print("best_variable - Dictionary Size: Value = " + str(best_var_dict_size) + " Accuracy =" + str(best_var_acc_dict_size))
-
-###
-# best_var_dict_size = 24
-# best_var_desc_dim = 68
-###
+##
+best_var_dict_size = 52
+best_var_desc_dim = 116
+##
 
 # c) Report performance on test images.
 #
@@ -270,15 +257,12 @@ for i in range(0, len(act_labels)):
     elif (act_labels[i] == elef_db.label) and (exp_labels[i] == air_db.label or exp_labels[i] == moto_db.label):
         elef_FP.append(i)
 
-
-print("air_FP" + str(air_FP) + "\n")
-print("air_FN" + str(air_FN) + "\n")
-print("moto_FP" + str(moto_FP) + "\n")
-print("moto_FN" + str(moto_FN) + "\n")
-print("elef_FP" + str(elef_FP) + "\n")
-print("elef_FN" + str(elef_FN) + "\n")
-
-
+# print("air_FP" + str(air_FP) + "\n")
+# print("air_FN" + str(air_FN) + "\n")
+# print("moto_FP" + str(moto_FP) + "\n")
+# print("moto_FN" + str(moto_FN) + "\n")
+# print("elef_FP" + str(elef_FP) + "\n")
+# print("elef_FN" + str(elef_FN) + "\n")
 
 def fp_fn(samples, n_im, FP_FN, act_labels, type_str):
     print(type_str)

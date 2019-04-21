@@ -13,8 +13,8 @@ import dlib
 # e) Put aside test image, (the last 10 images in the class(by name)).
 
 DEFAULT_TRESHOLD = 840
-DEFAULT_DESC_DIM = 72
-DEFAULT_DICT_SIZE = 32
+DEFAULT_DESC_DIM = 116
+DEFAULT_DICT_SIZE = 52
 
 class BowDB:
 
@@ -134,8 +134,8 @@ class BowDB:
         svm = cv2.ml_SVM.create()
         svm.setKernel(cv2.ml.SVM_RBF)
         svm.setType(cv2.ml.SVM_C_SVC)
-        svm.setC(50.0)
-        svm.setGamma(0.0006)
+        svm.setC(60.0)
+        svm.setGamma(0.0005)
         svm.train(samples=X, layout=cv2.ml.ROW_SAMPLE, responses=y)
         svm.save('svm_data.dat')
 
@@ -319,13 +319,13 @@ def train(class_list=[], treshold = DEFAULT_TRESHOLD, desc_n_features=DEFAULT_DE
 
     result = BowDB.predict_svm(train_set)
 
-    plt.scatter(np.array(range(len(result))), result)
-    plt.show()
-
-    conf_matrix = BowDB.confusion_matrix(len(class_list), result, joined_responces)
-    plt.imshow(conf_matrix)
-    plt.colorbar()
-    plt.show()
+    # plt.scatter(np.array(range(len(result))), result)
+    # plt.show()
+    #
+    # conf_matrix = BowDB.confusion_matrix(len(class_list), result, joined_responces)
+    # plt.imshow(conf_matrix)
+    # plt.colorbar()
+    # plt.show()
 
  # Saving the objects:
     with open('means.pkl', 'wb') as f:  # Python 3: open(..., 'wb')
@@ -403,13 +403,13 @@ def test(class_list=[], treshold = DEFAULT_TRESHOLD, testImageDirName='', desc_n
             expected_labels = np.concatenate((expected_labels, resp), axis=0)
 
         result = BowDB.predict_svm(test_set)
-        plt.scatter(np.array(range(len(result))), result)
-        plt.show()
-
-        conf_matrix = BowDB.confusion_matrix(len(class_list), result, expected_labels)
-        plt.imshow(conf_matrix)
-        plt.colorbar()
-        plt.show()
+        # plt.scatter(np.array(range(len(result))), result)
+        # plt.show()
+        #
+        # conf_matrix = BowDB.confusion_matrix(len(class_list), result, expected_labels)
+        # plt.imshow(conf_matrix)
+        # plt.colorbar()
+        # plt.show()
 
         accs = []
         for i in range(6):
