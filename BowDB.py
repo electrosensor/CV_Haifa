@@ -3,8 +3,6 @@ import numpy as np
 import os
 from matplotlib import pyplot as plt
 import pickle
-from sklearn.preprocessing import StandardScaler
-from sklearn.svm import SVC
 import dlib
 
 # 1)Create a DataBase –
@@ -16,7 +14,7 @@ import dlib
 
 DEFAULT_TRESHOLD = 840
 DEFAULT_DESC_DIM = 72
-DEFAULT_DICT_SIZE = 4
+DEFAULT_DICT_SIZE = 32
 
 class BowDB:
 
@@ -132,23 +130,17 @@ class BowDB:
 
     @staticmethod
     def train_svm(X, y):
-        # sc = StandardScaler()
-        # train_set_std = sc.fit_transform(X)
 
         svm = cv2.ml_SVM.create()
         svm.setKernel(cv2.ml.SVM_RBF)
         svm.setType(cv2.ml.SVM_C_SVC)
         svm.setC(50.0)
         svm.setGamma(0.0006)
-
         svm.train(samples=X, layout=cv2.ml.ROW_SAMPLE, responses=y)
         svm.save('svm_data.dat')
 
     @staticmethod
     def predict_svm(X):
-
-        # sc = StandardScaler()
-        # test_set_std = sc.fit_transform(X)
 
         svm = cv2.ml_SVM.create()
         svm = svm.load('svm_data.dat')
@@ -177,21 +169,25 @@ class BowDB:
 
     @staticmethod
     def get_accuracy(checked_class, act_labels, exp_labels):
-        TP = BowDB.__true_pos(checked_class, act_labels, exp_labels)
-        TN = BowDB.__false_neg(checked_class, act_labels, exp_labels)
-        accuracy = (TP + TN) / len(act_labels)
+        act_labels = act_labels.astype(np.int32)
+        exp_labels = exp_labels.astype(np.int32)
+        hits = 0
+        for i in range(len(act_labels)):
+            if (act_labels[i] == checked_class) and (exp_labels[i] == checked_class):
+                hits += 1
+        accuracy = hits/len(act_labels)
         return accuracy
 
     @staticmethod
-    def get_avg_accuracy_3class(act_labels, exp_labels):
-        first_acc = BowDB.get_accuracy(0, act_labels, exp_labels)
-        first_size = len(exp_labels[exp_labels == 0])
-        second_acc = BowDB.get_accuracy(1, act_labels, exp_labels)
-        second_size = len(exp_labels[exp_labels == 1])
-        third_acc = BowDB.get_accuracy(2, act_labels, exp_labels)
-        third_size = len(exp_labels[exp_labels == 2])
-        all_size = len(exp_labels)
-        accuracy = first_acc*(first_size/all_size) + second_acc*(second_size/all_size) + third_acc*(third_size/all_size)
+    def get_common_acc(act_labels, exp_labels):
+        act_labels = act_labels.astype(np.int32)
+        exp_labels = exp_labels.astype(np.int32)
+        hits = 0
+        for i in range(len(act_labels)):
+            if act_labels[i] == exp_labels[i]:
+                hits += 1
+        accuracy = hits/len(act_labels)
+
         return accuracy
 
     @staticmethod
@@ -416,14 +412,10 @@ def test(class_list=[], treshold = DEFAULT_TRESHOLD, testImageDirName='', desc_n
         plt.show()
 
         accs = []
-        accs.append(BowDB.get_accuracy(0, result, expected_labels))
-        accs.append(BowDB.get_accuracy(1, result, expected_labels))
-        accs.append(BowDB.get_accuracy(2, result, expected_labels))
-        accs.append(BowDB.get_accuracy(3, result, expected_labels))
-        accs.append(BowDB.get_accuracy(4, result, expected_labels))
-        accs.append(BowDB.get_accuracy(5, result, expected_labels))
+        for i in range(6):
+            accs.append(BowDB.get_accuracy(i, result, expected_labels))
 
-        avg_acc = BowDB.get_avg_accuracy_3class(result, expected_labels)
+        avg_acc = BowDB.get_common_acc(result, expected_labels)
         print("Accuracy is: " + str(avg_acc))
 
         return [result, expected_labels, accs, avg_acc]

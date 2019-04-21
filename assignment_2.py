@@ -40,152 +40,152 @@ from matplotlib import pyplot as plt
 #        iii) Print best variable value according to ROC curve.
 
 categories = ['Airplane', 'Motobike', 'Elephant']
-#
-# air_precision=[]
-# air_recall=[]
-# moto_precision=[]
-# moto_recall=[]
-# elef_precision=[]
-# elef_recall=[]
-#
-# air_acc = []
-# moto_acc = []
-# elef_acc = []
-#
-# y=[]
-# scores=[]
-#
-# min_desc_dim = 100
-# max_desc_dim = 110
-# step = 2
-#
-# best_var_desc_dim=0
-# best_var_acc_desc_dim=0
-#
-# for dd in range(min_desc_dim, max_desc_dim, step):
-#
-#     print("Current descriptor dimention is: " + str(dd) + ":\n")
-#
-#     train(class_list=categories, desc_n_features=dd)
-#     result = test(class_list=categories, desc_n_features=dd)
-#     act_labels = result[0]
-#     exp_labels = result[1]
-#     score = result[3]
-#
-#     BowDB.get_accuracy(0, act_labels, exp_labels)
-#
-#     if score > best_var_acc_desc_dim:
-#         best_var_desc_dim = dd
-#         best_var_acc_desc_dim = score
-#     air_roc = BowDB.roc_curve(0, act_labels, exp_labels)
-#     air_precision.append(air_roc[0])
-#     air_recall.append(air_roc[1])
-#     moto_roc = BowDB.roc_curve(1, act_labels, exp_labels)
-#     moto_precision.append(moto_roc[0])
-#     moto_recall.append(moto_roc[1])
-#     elef_roc = BowDB.roc_curve(2, act_labels, exp_labels)
-#     elef_precision.append(elef_roc[0])
-#     elef_recall.append(elef_roc[1])
-#
-#     air_acc.append(BowDB.get_accuracy(0, act_labels, exp_labels))
-#     moto_acc.append(BowDB.get_accuracy(1, act_labels, exp_labels))
-#     elef_acc.append(BowDB.get_accuracy(2, act_labels, exp_labels))
-#
-#     y.append(exp_labels)
-#     scores.append(act_labels)
-#     # print(air_acc)
-#     # print(moto_acc)
-#     # print(elef_acc)
-#
-# #i) Plot ROC curve
-#
-# plt.plot(air_precision, air_recall)
-# plt.plot(moto_precision, moto_recall)
-# plt.plot(elef_precision, elef_recall)
-# plt.show()
-#
-# # ii) Plot Accuracy as a function of the dependent variable.
-#
-# plt.plot(np.array(range(len(air_acc))), air_acc)
-# plt.plot(np.array(range(len(moto_acc))), moto_acc)
-# plt.plot(np.array(range(len(elef_acc))), elef_acc)
-# plt.show()
-#
-# #  iii) Print best variable value according to ROC curve.
-# print()
-# print("best_variable - Descriptor dimension: Value = " + str(best_var_desc_dim) + " Accuracy =" + str(best_var_acc_desc_dim))
-# print()
-#
-# #     b) Show the change in performance over all the data, as a function of the size of the Dictionary.
-# #        (Use the best threshold value found in a) ).
-# #        i) Plot ROC curve
-# #        ii) Plot Accuracy as a function of Dictionary size.
-# #        Accuracy is defined as: (TP + TN) /  # AllData
-#
-#
-# air_precision=[]
-# air_recall=[]
-# moto_precision=[]
-# moto_recall=[]
-# elef_precision=[]
-# elef_recall=[]
-# air_acc = []
-# moto_acc = []
-# elef_acc = []
-#
-# min_dictionary_size = 8
-# max_dictionary_size = 32
-# step = 8
-#
-# best_var_dict_size = 0
-# best_var_acc_dict_size = 0
-#
-# for ds in range(min_dictionary_size, max_dictionary_size, step):
-#     print()
-#     print("Current dictionary size is: " + str(ds) + ":\n")
-#
-#     train(class_list=categories, dict_size=ds, desc_n_features=best_var_desc_dim)
-#     result = test(class_list=categories, dict_size=ds)
-#     act_labels = result[0]
-#     exp_labels = result[1]
-#     score = result[3]
-#
-#     if score > best_var_acc_dict_size :
-#         best_var_dict_size = ds
-#         best_var_acc_dict_size = score
-#
-#     air_roc = BowDB.roc_curve(0, act_labels, exp_labels)
-#     air_precision.append(air_roc[0])
-#     air_recall.append(air_roc[1])
-#     moto_roc = BowDB.roc_curve(1, act_labels, exp_labels)
-#     moto_precision.append(moto_roc[0])
-#     moto_recall.append(moto_roc[1])
-#     elef_roc = BowDB.roc_curve(2, act_labels, exp_labels)
-#     elef_precision.append(elef_roc[0])
-#     elef_recall.append(elef_roc[1])
-#
-#     air_acc.append(BowDB.get_accuracy(0, act_labels, exp_labels))
-#     moto_acc.append(BowDB.get_accuracy(1, act_labels, exp_labels))
-#     elef_acc.append(BowDB.get_accuracy(2, act_labels, exp_labels))
-# #i) Plot ROC curve
-#
-# plt.plot(air_precision, air_recall)
-# plt.plot(moto_precision, moto_recall)
-# plt.plot(elef_precision, elef_recall)
-# plt.show()
-#
-# # ii) Plot Accuracy as a function of the dependent variable.
-#
-# plt.plot(np.array(range(len(air_acc))), air_acc)
-# plt.plot(np.array(range(len(moto_acc))), moto_acc)
-# plt.plot(np.array(range(len(elef_acc))), elef_acc)
-# plt.show()
-#
-# print("best_variable - Dictionary Size: Value = " + str(best_var_dict_size) + " Accuracy =" + str(best_var_acc_dict_size))
+
+air_precision=[]
+air_recall=[]
+moto_precision=[]
+moto_recall=[]
+elef_precision=[]
+elef_recall=[]
+
+air_acc = []
+moto_acc = []
+elef_acc = []
+
+y=[]
+scores=[]
+
+min_desc_dim = 64
+max_desc_dim = 256
+step = 2
+
+best_var_desc_dim=0
+best_var_acc_desc_dim=0
+
+for dd in range(min_desc_dim, max_desc_dim, step):
+
+    print("Current descriptor dimention is: " + str(dd) + ":\n")
+
+    train(class_list=categories, desc_n_features=dd)
+    result = test(class_list=categories, desc_n_features=dd)
+    act_labels = result[0]
+    exp_labels = result[1]
+    score = result[3]
+
+    BowDB.get_accuracy(0, act_labels, exp_labels)
+
+    if score > best_var_acc_desc_dim:
+        best_var_desc_dim = dd
+        best_var_acc_desc_dim = score
+    air_roc = BowDB.roc_curve(0, act_labels, exp_labels)
+    air_precision.append(air_roc[0])
+    air_recall.append(air_roc[1])
+    moto_roc = BowDB.roc_curve(1, act_labels, exp_labels)
+    moto_precision.append(moto_roc[0])
+    moto_recall.append(moto_roc[1])
+    elef_roc = BowDB.roc_curve(2, act_labels, exp_labels)
+    elef_precision.append(elef_roc[0])
+    elef_recall.append(elef_roc[1])
+
+    air_acc.append(BowDB.get_accuracy(0, act_labels, exp_labels))
+    moto_acc.append(BowDB.get_accuracy(1, act_labels, exp_labels))
+    elef_acc.append(BowDB.get_accuracy(2, act_labels, exp_labels))
+
+    y.append(exp_labels)
+    scores.append(act_labels)
+    # print(air_acc)
+    # print(moto_acc)
+    # print(elef_acc)
+
+#i) Plot ROC curve
+
+plt.plot(air_precision, air_recall)
+plt.plot(moto_precision, moto_recall)
+plt.plot(elef_precision, elef_recall)
+plt.show()
+
+# ii) Plot Accuracy as a function of the dependent variable.
+
+plt.plot(np.array(range(len(air_acc))), air_acc)
+plt.plot(np.array(range(len(moto_acc))), moto_acc)
+plt.plot(np.array(range(len(elef_acc))), elef_acc)
+plt.show()
+
+#  iii) Print best variable value according to ROC curve.
+print()
+print("best_variable - Descriptor dimension: Value = " + str(best_var_desc_dim) + " Accuracy =" + str(best_var_acc_desc_dim))
+print()
+
+#     b) Show the change in performance over all the data, as a function of the size of the Dictionary.
+#        (Use the best threshold value found in a) ).
+#        i) Plot ROC curve
+#        ii) Plot Accuracy as a function of Dictionary size.
+#        Accuracy is defined as: (TP + TN) /  # AllData
+
+
+air_precision=[]
+air_recall=[]
+moto_precision=[]
+moto_recall=[]
+elef_precision=[]
+elef_recall=[]
+air_acc = []
+moto_acc = []
+elef_acc = []
+
+min_dictionary_size = 4
+max_dictionary_size = 128
+step = 1
+
+best_var_dict_size = 0
+best_var_acc_dict_size = 0
+
+for ds in range(min_dictionary_size, max_dictionary_size, step):
+    print()
+    print("Current dictionary size is: " + str(ds) + ":\n")
+
+    train(class_list=categories, dict_size=ds, desc_n_features=best_var_desc_dim)
+    result = test(class_list=categories, dict_size=ds)
+    act_labels = result[0]
+    exp_labels = result[1]
+    score = result[3]
+
+    if score > best_var_acc_dict_size :
+        best_var_dict_size = ds
+        best_var_acc_dict_size = score
+
+    air_roc = BowDB.roc_curve(0, act_labels, exp_labels)
+    air_precision.append(air_roc[0])
+    air_recall.append(air_roc[1])
+    moto_roc = BowDB.roc_curve(1, act_labels, exp_labels)
+    moto_precision.append(moto_roc[0])
+    moto_recall.append(moto_roc[1])
+    elef_roc = BowDB.roc_curve(2, act_labels, exp_labels)
+    elef_precision.append(elef_roc[0])
+    elef_recall.append(elef_roc[1])
+
+    air_acc.append(BowDB.get_accuracy(0, act_labels, exp_labels))
+    moto_acc.append(BowDB.get_accuracy(1, act_labels, exp_labels))
+    elef_acc.append(BowDB.get_accuracy(2, act_labels, exp_labels))
+#i) Plot ROC curve
+
+plt.plot(air_precision, air_recall)
+plt.plot(moto_precision, moto_recall)
+plt.plot(elef_precision, elef_recall)
+plt.show()
+
+# ii) Plot Accuracy as a function of the dependent variable.
+
+plt.plot(np.array(range(len(air_acc))), air_acc)
+plt.plot(np.array(range(len(moto_acc))), moto_acc)
+plt.plot(np.array(range(len(elef_acc))), elef_acc)
+plt.show()
+
+print("best_variable - Dictionary Size: Value = " + str(best_var_dict_size) + " Accuracy =" + str(best_var_acc_dict_size))
 
 ###
-best_var_dict_size = 24
-best_var_desc_dim = 68
+# best_var_dict_size = 24
+# best_var_desc_dim = 68
 ###
 
 # c) Report performance on test images.
