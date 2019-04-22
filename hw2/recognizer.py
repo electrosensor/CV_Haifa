@@ -16,7 +16,7 @@ import cv2
 # (between image displays, ask for space bar press from user).
 #
 
-testImageDirName='test/'
+testImageDirName=''
 
 
 def recognizer():
@@ -45,7 +45,3 @@ def recognizer():
                 break
         i += 1
     cv2.destroyAllWindows()
-
-
-
-recognizer()

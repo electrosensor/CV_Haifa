@@ -332,7 +332,6 @@ chair_size = len(exp_labels[exp_labels == air_db.label])
 ferry_size = len(exp_labels[exp_labels == air_db.label])
 wheelch_size = len(exp_labels[exp_labels == wheelch_db.label])
 
-
 all_size = len(exp_labels)
 
 avg_precision = air_precision*(air_size/all_size) + \
