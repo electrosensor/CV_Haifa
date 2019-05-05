@@ -1,0 +1,110 @@
+CV Homework Set #3 – Optical Flow Tracking + Segmentation
+Due: 15/5/19
+Submission:    HW code should be submitted to HW checker by email to:
+                     imageprocessinghaifau@gmail.com
+
+
+
+Goal: Use Optical Flow to track and to segment the image
+
+General: You will be using the Computer Vision Open Source library OpenCV.
+Please use the following programs and versions
+
+Python 3.7.2
+JetBrains PyCharm Community Edition 2018.3.4
+Numpy 1.16.2
+OpenCV 4.0.0.21
+Dlib 19.16.0
+
+Unfortunately, no technical support will be given in this course.
+A discussion forum has been opened in the Moodle site for this course.
+
+
+
+HW3 Instructions:
+
+Write code that implements the following:
+
+1) Use optical flow to track feature points and segment image.
+Input - a video.
+Output - I) a video with tracked results (vector flow lines in each frame at the tracked features - see below).
+             II) a single image of the last frame in which the full motion path of the points are drawn.
+
+NOTE: Input is given by setting the following variables at the beginning of your code:
+inputVideoName is the name of the input video.
+selectPoints is TRUE (1) if points are to be selected by user and FALSE (0) if automatically selected feature points.
+                       (see description of the two options below)
+numberOfPoints is the variable that sets the number of feature points to select.
+
+Method: The code supports two options:
+
+Option A) In first (few) frames find interest points (Harris corner etc). Select a number of them.
+Number of points should be given as parameter in program.
+(number should not be too many to clutter the scene, but not too few either).
+You may decide how to select the points (strongest feature det response, spacing across image,
+selected points not too close to one another etc).
+
+Use optical flow to track the feature points that are moving across the video.
+
+Every so many frames, check for feature points. Some may have disappeared - stop tracking them,
+and some new may have appeared - start tracking them.
+
+Draw optical flow vectors for the tracked points in each frame. Draw a line representing the flow
+vector that ENDS at the feature point. Direction and size of line is according to flow vector that
+was found (lines should probably be scaled up for visualization. It is OK that for small motion
+the vector will not be seen/drawn - see in the example) .
+See example video here: https://www.youtube.com/watch?v=LjjJQ81RbX0
+and here: https://www.youtube.com/watch?v=0MtMxqJ6hF4
+
+    Output also the final frame with the full tracked marks (basically all the optical flow vectors
+    collected over all frames). As in example below
+
+
+
+
+Option B) Same as above but user clicks in first frame, points of interest to track.
+
+
+Example Input Videos can be found here:
+
+
+
+
+
+2) Use optical flow to segment image. Segments are pixels with (approximately) uniform motion flow.
+
+Given 2 images (2 frames of a video) - segments the second image into motion layers.
+    Input: either 2 images OR a video and 2 numbers representing frame numbers.
+    Output: the second image (or second numbered frame of video) with marked segments.
+              segments are marked using transparent color as in HW1.
+    NOTE: Input is given by setting the following variables at the beginning of your code:
+   inputByVideo is TRUE (1) if input is by video and 2 frame numbers, and FALSE (0) if by 2 given images.
+   im1, im2 – 2 same sized images serve as input. (used only when inputByVideo is FALSE)
+   inputVideoName - the name of the input video. (used only when inputByVideo is TRUE)
+   frameNumber1, FrameNumber2 - the frame numbers in the video to use as input.
+
+    Method:
+    Find at most 4 dominant segments in the image according to direction and
+    strength of motion (the optical flow vectors) of ALL pixels in the scene.
+    Use clustering on the dense optical flow extracted for each pixel to determine main clusters.
+   Segment the image. (One segment can be the bg with 0 optical flow).
+    You can use your segmentation code from HW 1.
+
+
+
+
+
+Submission:
+1) Code
+2) Submit resulting video on one of the given videos and its final path image.
+3) Submit a NEW source video of your choice and the resulting tracking video and its final path image.
+4) 2 frames and the resulting segmentation image.
+
+     This time - no need to submit project report. (yeay!!)
+
+
+     If data is too big to send via email, zip submission and use dropbox/google drive etc and send only link.
+
+
+
+   Do not forget to put Names and Student I.D. in all files.
