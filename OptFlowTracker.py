@@ -1,9 +1,9 @@
 import cv2 as cv
 import numpy as np
 
-inputVideoName = 'Videos\\highway.avi'
-selectPoints = True
-numberOfPoints = 5
+inputVideoName = 'Videos\\ballet.mp4'
+selectPoints = False
+numberOfPoints = 10
 
 
 # mouse callback function
@@ -19,7 +19,8 @@ def mouse_click(event, x, y, flags, params):
 # given a frame points and a color, paint in frame
 def paint_pts(color):
     for i in range(numberOfPoints):
-        cv.circle(prev_frame, (prev_pts[i, 0, 0], prev_pts[i, 0, 1]), 10, color, -1)
+        if prev_pts[i, 0, 0] != -1 and prev_pts[i, 0, 1] != -1:
+          cv.circle(prev_frame, (prev_pts[i, 0, 0], prev_pts[i, 0, 1]), 10, color, -1)
 
 
 def main():
@@ -31,7 +32,6 @@ def main():
     cap = cv.VideoCapture(inputVideoName)
 
     cv.namedWindow('video')
-    cv.namedWindow('prev_pts')
 
     if not cap.isOpened():
         print("cant read video")
@@ -44,7 +44,7 @@ def main():
                 # mouse event listener
                 current_pt = 0
                 cv.setMouseCallback("prev_pts", mouse_click)
-                prev_pts = np.ones([numberOfPoints, 1, 2], dtype=np.float32)
+                prev_pts = -1*np.ones([numberOfPoints, 1, 2], dtype=np.float32)
                 # lists to hold pixels in each segment
                 while True:
                     cv.imshow("prev_pts", prev_frame)
@@ -57,11 +57,9 @@ def main():
                     if k == 27:  # escape
                         break
             else:
-                feature_params = dict(maxCorners=numberOfPoints, qualityLevel=0.2, minDistance=2, blockSize=9, useHarrisDetector=False)
+                feature_params = dict(maxCorners=numberOfPoints, qualityLevel=0.01, minDistance=25, blockSize=9, useHarrisDetector=False)
                 prev_pts = cv.goodFeaturesToTrack(prev_gray, mask=None, **feature_params)
-                print(type(prev_pts))
-                print(prev_pts.shape)
-                print(prev_pts)
+
             # Parameters for lucas kanade optical flow
             lk_params = dict(winSize=(9, 9),
                              maxLevel=2,
@@ -76,24 +74,27 @@ def main():
             ret, next_frame = cap.read()
             if ret:
                 next_gray = cv.cvtColor(next_frame, cv.COLOR_BGR2GRAY)
-                # next_gray = np.float32(next_gray)
 
-                next_pts, status, err = cv.calcOpticalFlowPyrLK(prevImg=prev_gray, nextImg=next_gray, prevPts=prev_pts, nextPts=None)
+                next_pts, status, err = cv.calcOpticalFlowPyrLK(**lk_params, prevImg=prev_gray, nextImg=next_gray, prevPts=prev_pts, nextPts=None)
 
                 # Select good points
                 good_new = next_pts[status == 1]
                 good_old = prev_pts[status == 1]
 
+                if len(good_new) < numberOfPoints:
+                    feature_params = dict(maxCorners=numberOfPoints - len(good_new), qualityLevel=0.01, minDistance=10, blockSize=3, useHarrisDetector=False)
+                    new_pts = cv.goodFeaturesToTrack(next_gray, mask=None, **feature_params)
+                    good_new = np.concatenate((good_new, np.reshape(new_pts, [-1, 2])), axis=0)
+
                 # draw the tracks
                 for i, (new, old) in enumerate(zip(good_new, good_old)):
                     a, b = new.ravel()
                     c, d = old.ravel()
-                    mask = cv.line(mask, (a, b), (c, d), color[i].tolist(), 2)
-                    frame = cv.circle(next_frame, (a, b), 5, color[i].tolist(), -1)
+                    mask = cv.line(mask, (a, b), (c, d), color[i].tolist(), 3)
+                    frame = cv.circle(next_frame, (a, b), 7, color[i].tolist(), -1)
                 img = cv.add(frame, mask)
 
-                cv.imshow('video', next_frame)
-                cv.imshow('prev_pts', img)
+                cv.imshow('video', img)
 
                 if cv.waitKey(25) & 0xFF == ord('q'):
                     break
@@ -102,7 +103,7 @@ def main():
                 prev_pts = good_new.reshape(-1, 1, 2)
 
             else:
-                print('An error occurred')
+                cv.imwrite('optical_flow.png', img)
                 break
 
     cap.release()
